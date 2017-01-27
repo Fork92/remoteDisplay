@@ -1,7 +1,6 @@
 package de.tbecke.net;
 
-import de.tbecke.gfx.cards.GraphicsCard;
-import de.tbecke.gfx.cards.MDA;
+import de.tbecke.gfx.cards.CardManager;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 
@@ -17,16 +16,16 @@ public class TCPServer implements Runnable {
     private final Logger LOGGER = LogManager.getLogger( TCPServer.class );
 
     private ServerSocket serverSocket;
-    private GraphicsCard graphicsCard;
+    private CardManager cardManager;
 
     private Socket client;
 
     private BufferedReader bufferedReader = null;
     private BufferedWriter bufferedWriter = null;
 
-    public TCPServer( int port, GraphicsCard graphicsCard ) {
+    public TCPServer( int port, CardManager cardManager ) {
 
-        this.graphicsCard = graphicsCard;
+        this.cardManager = cardManager;
 
         try {
             serverSocket = new ServerSocket( port );
@@ -35,20 +34,16 @@ public class TCPServer implements Runnable {
             LOGGER.error( e );
         }
 
-        graphicsCard.setRAM( 0, "Starting server...", (char) ( MDA.UNDERLINE | MDA.HIGHSENSITY ) );
-
     }
 
     @Override
     public void run() {
         client = null;
         try {
-            graphicsCard.setRAM( 160, "Server Started, waiting for Connection...", (char) ( MDA.UNDERLINE | MDA.HIGHSENSITY ) );
             client = serverSocket.accept();
         } catch( IOException e ) {
             LOGGER.error( e );
         }
-        graphicsCard.setRAM( 320, "Client connected, on Port: " + client.getLocalPort(), (char) ( MDA.UNDERLINE | MDA.HIGHSENSITY ) );
 
         while( !client.isClosed() && client.isConnected() ) {
             try {
@@ -69,6 +64,9 @@ public class TCPServer implements Runnable {
                             this.write( switchStr );
                             break;
                         case "MODE":
+                            break;
+                        case "GC":
+                            this.changeCard( switchStr );
                             break;
                         case "HELP":
                             this.printHelp( switchStr );
@@ -91,9 +89,23 @@ public class TCPServer implements Runnable {
         }
     }
 
+    private void changeCard( String[] args ) {
+        if( args.length == 2 ) {
+            cardManager.setCurrent( args[1] );
+        } else {
+            try {
+                bufferedWriter.write( "Useage: GC [cardname]" );
+                bufferedWriter.flush();
+            } catch( IOException e ) {
+                e.printStackTrace();
+            }
+        }
+
+    }
+
     private void clear() {
-        for(int i = 0; i < graphicsCard.getMaxRam(); i++) {
-            graphicsCard.setRAM( i, ' ', ' ' );
+        for( int i = 0; i < cardManager.getCurrent().getMaxRam(); i++ ) {
+            cardManager.getCurrent().setRAM( i, (char) 0x00 );
         }
     }
 
@@ -102,14 +114,11 @@ public class TCPServer implements Runnable {
         LOGGER.debug( args.length );
 
             LOGGER.debug( "Write at address: " + (start) + ", value with: " + args[2] + ", and flag: " + Integer.toHexString( Integer.parseInt( args[args.length - 1] )));
-            graphicsCard.setRAM( start, args[2], (char)(Integer.parseInt( args[args.length - 1] ) ));
+        cardManager.getCurrent().setRAM( start, args[2], (char) ( Integer.parseInt( args[args.length - 1] ) ) );
     }
 
     private void printHelp( String[] args ) {
         String msg = "Available commands are:\n" +
-            "\t POINT \t[x][y] [Status]\n" +
-            "\t LINE \t[Sx][Sy] [Ex][Ey] [Status]\n" +
-            "\t CIRCLE \t[x][y][r] [Status]\n" +
             "\t MEM \t[Addr]([Addr], ...) [Status]\n" +
             "\t MODE \t [FLAG]\n";
 
@@ -118,27 +127,6 @@ public class TCPServer implements Runnable {
             LOGGER.debug( args[1] );
 
             switch( args[1] ) {
-                case "POINT":
-                    msg = "Help for command POINT:\n" +
-                        "\t [x]: the x Point on the Display\n" +
-                        "\t [y]: the y Point on the Display\n" +
-                        "\t [status]: the status Flag for this Element on the Display\n";
-                    break;
-                case "LINE":
-                    msg = "Help for command LINE:\n" +
-                        "\t [Sx]: the start x Point on the Display\n" +
-                        "\t [Sy]: the start y Point on the Display\n" +
-                        "\t [Ex]: the end x Point on the Display\n" +
-                        "\t [Ey]: the end y Point on the Display\n" +
-                        "\t [status]: the status Flag for this Element on the Display\n";
-                    break;
-                case "CIRCLE":
-                    msg = "Help for command CIRCLE:\n" +
-                        "\t [x]: the x Point on the Display\n" +
-                        "\t [y]: the y Point on the Display\n" +
-                        "\t [r]: the the radius for the Circle\n" +
-                        "\t [status]: the status Flag for this Element on the Display\n";
-                    break;
                 case "MEM":
                     msg = "Help for command MEM:\n" +
                         "\t [Addr]: the Address to be manipulated. The address has the following format: 0x...(Hexcode)\n" +

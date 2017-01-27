@@ -1,7 +1,6 @@
 package de.tbecke.gfx;
 
-import de.tbecke.gfx.cards.GraphicsCard;
-import de.tbecke.gfx.cards.MDA;
+import de.tbecke.gfx.cards.CardManager;
 import de.tbecke.net.TCPServer;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
@@ -19,49 +18,48 @@ public class Display extends Canvas implements Runnable {
 
     private final Logger LOGGER = LogManager.getLogger( Display.class );
     private JFrame frame;
-    private Dimension dimension;
     private boolean running;
-    private GraphicsCard graphicsCard;
+    private CardManager cardManager;
     private BufferedImage image;
     private int[] pixels;
     private TCPServer server;
 
     public Display() {
-        this.graphicsCard = new MDA();
-
-        this.server = new TCPServer(1337, this.graphicsCard);
-        this.image = new BufferedImage( this.graphicsCard.getWidth(), this.graphicsCard.getHeight(),
-            BufferedImage.TYPE_INT_RGB );
-        this.pixels = ((DataBufferInt) this.image.getRaster().getDataBuffer()).getData();
-
-        this.dimension = new Dimension( this.graphicsCard.getWidth(), this.graphicsCard.getHeight() );
-
-        this.setMinimumSize( this.dimension );
-        this.setMaximumSize( this.dimension );
-        this.setPreferredSize( this.dimension );
-
         this.frame = new JFrame( "RemoteDisplay" );
+        cardManager = new CardManager( this );
+
+        this.server = new TCPServer( 1337, this.cardManager );
+
+
         this.frame.setDefaultCloseOperation( JFrame.EXIT_ON_CLOSE );
         this.frame.setLayout( new BorderLayout() );
         this.frame.add( this, BorderLayout.CENTER );
         this.frame.pack();
         this.frame.setResizable( false );
         this.frame.setLocationRelativeTo( null );
-
+        this.frame.pack();
         this.frame.setVisible( true );
 
         this.start();
 
     }
 
-    public void start() {
+    private void start() {
         this.running = true;
         new Thread( this, "RemoteDisplay" ).start();
         new Thread( server, "Server" ).start();
     }
 
-    public void stop() {
-        running = false;
+    public void setDisplay( int w, int h ) {
+        this.image = new BufferedImage( w, h, BufferedImage.TYPE_INT_RGB );
+        this.pixels = ( (DataBufferInt) this.image.getRaster().getDataBuffer() ).getData();
+
+        Dimension dimension = new Dimension( w, h );
+        this.setMinimumSize( dimension );
+        this.setMaximumSize( dimension );
+        this.setPreferredSize( dimension );
+
+        this.frame.pack();
     }
 
 
@@ -109,11 +107,11 @@ public class Display extends Canvas implements Runnable {
 
     }
 
-    public void ticks() {
-        graphicsCard.tick();
+    private void ticks() {
+        cardManager.getCurrent().tick();
     }
 
-    public void render() {
+    private void render() {
 
         BufferStrategy bufferStrategy = this.getBufferStrategy();
 
@@ -123,10 +121,10 @@ public class Display extends Canvas implements Runnable {
             return;
         }
 
-        graphicsCard.render();
+        cardManager.getCurrent().render();
 
         for(int i = 0; i < pixels.length; i++) {
-            pixels[i] = graphicsCard.framebuffer[i];
+            pixels[i] = cardManager.getCurrent().framebuffer[i];
         }
 
         Graphics graphics = bufferStrategy.getDrawGraphics();

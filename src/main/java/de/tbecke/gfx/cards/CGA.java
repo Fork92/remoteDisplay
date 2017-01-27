@@ -5,7 +5,6 @@ import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 
 import javax.imageio.ImageIO;
-import java.awt.*;
 import java.io.IOException;
 
 /**
@@ -15,66 +14,83 @@ public class CGA extends GraphicsCard {
 
     private static final Logger LOGGER = LogManager.getLogger( CGA.class );
 
-//    MODE Register Flags
-    public static final byte MODE_BLINK                 = 1 << 5;
-    public static final byte MODE_HIGH_RES_GRAPHIC      = 1 << 4;
-    public static final byte MODE_ENABLE_VIDEOOUTPUT    = 1 << 3;
-    public static final byte MODE_BLACK_WHITE           = 1 << 2;
-    public static final byte MODE_GRAPHIC_MODE          = 1 << 1;
-    public static final byte MODE_HIGH_RES              = 1 << 0;
-
     private char MODE_REGISTER;
 
-    private char[] RAM = new char[16*1024];
+    private char[] RAM = new char[16 * 1024];
     private FontCache font;
 
     private int width = 640;
     private int height = 200;
+    private int maxCol;
 
     private int lastBlink;
     private boolean blink;
 
-    public CGA() {
+    CGA() {
         try {
-            this.font = new FontCache( ImageIO.read( this.getClass().getResourceAsStream( "CGA.png" ) ) );
+            this.font = new FontCache( ImageIO.read( this.getClass().getResourceAsStream( "/CGA.png" ) ) );
         } catch( IOException e ) {
             LOGGER.error( e );
         }
 
-        setMode( MODE_ENABLE_VIDEOOUTPUT );
-        this.framebuffer = new int[width*height];
+        setMode( Mode.ENABLE_VIDEO_OUTPUT );
+        setMode( Mode.HIGH_RES );
+        setRenderWidth();
+
+        this.framebuffer = new int[width * height];
+    }
+
+    private void setRenderWidth() {
+        if( isModeSet( Mode.HIGH_RES ) ) {
+            maxCol = 80;
+        } else {
+            maxCol = 40;
+        }
+    }
+
+    private boolean isModeSet( Mode mode ) {
+        return ( MODE_REGISTER & mode.value ) > 0;
+    }
+
+    @Override
+    public void render() {
+        if( isModeSet( Mode.ENABLE_VIDEO_OUTPUT ) ) {
+            if( isModeSet( Mode.GRAPHIC_MODE ) ) {
+                this.renderGraphic();
+            } else {
+                this.renderText();
+            }
+        }
     }
 
     private void renderText() {
-        if( isModeSet(MODE_ENABLE_VIDEOOUTPUT) ) {
 
-            // read mem
-            for(int y = 0; y < 25; y++) {
-                for(int x = 0; x < 80; x++) {
-                    int c = RAM[(x + y * 80) * 2];
-                    int attr = RAM[(x + y * 80) * 2 + 1];
-                    int charX = c % 32 * 9;
-                    int charY = c / 32 * 14;
+        // read mem
+        for( int y = 0; y < 25; y++ ) {
+            for( int x = 0; x < maxCol; x++ ) {
+                int c = RAM[( x + y * maxCol ) * 2];
+                int attr = RAM[( x + y * maxCol ) * 2 + 1];
+                int charX = c % 32 * 8;
+                int charY = c / 32 * 8;
 
-                    for(int fy = 0; fy < 14; fy++) {
-                        for(int fx = 0; fx < 9; fx++) {
-                            int col = getColor( font.pixels[(charX+fx) + ((charY+fy) * font.width)], attr ).getValue();
+                for( int fy = 0; fy < 8; fy++ ) {
+                    for( int fx = 0; fx < 8; fx++ ) {
 
-                            if ( isAttrSet( (UNDERLINE), attr ) && fy == 12) {
-                                col = Color.DARK_GREEN.getValue();
-                                if( isAttrSet( HIGHSENSITY, attr )) {
-                                    col = Color.GREEN.getValue();
-                                }
-                            }
+                        int id = font.pixels[( charX + fx ) + ( ( charY + fy ) * font.width )] == 0 ? attr & 0x0f : attr >> 4;
 
-                            if( isAttrSet( BLINK, attr ) && isBlinkEnabled() && blink) {
-                                col = Color.BLACK.getValue();
-                            }
+                        int col = Color.getValueByID( id );
 
-                            this.framebuffer[(x*9+fx)+((y*14+fy)*this.getWidth())] = col;
+                        if( isModeSet( Mode.BLINK ) && blink )
+                            col = Color.BLACK.value;
+
+                        if( isModeSet( Mode.HIGH_RES ) ) {
+                            this.framebuffer[( x * 8 + fx ) + ( ( y * 8 + fy ) * this.width )] = col;
+                        } else {
+                            this.framebuffer[( ( x * 8 + fx ) * 2 ) + ( ( y * 8 + fy ) * this.width )] = col;
+                            this.framebuffer[( ( x * 8 + fx ) * 2 + 1 ) + ( ( y * 8 + fy ) * this.width )] = col;
                         }
-                    }
 
+                    }
                 }
 
             }
@@ -82,41 +98,37 @@ public class CGA extends GraphicsCard {
 
     }
 
-    private boolean isModeSet(int mode) {
-        return (MODE_REGISTER & mode) > 0;
-    }
+    private void renderGraphic() {
 
-    @Override
-    public void render() {
-        if( isModeSet( MODE_GRAPHIC_MODE ) ) {
-
-        } else {
-            renderText();
-        }
     }
 
     @Override
     public void tick() {
         lastBlink++;
-        if(lastBlink >= 30) {
+        if( lastBlink >= 30 ) {
             blink = !blink;
             lastBlink = 0;
         }
     }
 
     @Override
-    public void setMode( byte mode ) {
-        this.MODE_REGISTER |= mode;
+    public void setMode( Mode mode ) {
+        this.MODE_REGISTER ^= mode.value;
     }
 
     @Override
-    public void setRAM( int addr, char value, char flag ) {
-
+    public void setRAM( int addr, char value ) {
+        RAM[addr] = value;
     }
 
     @Override
     public void setRAM( int addr, String msg, char flag ) {
-
+        if( !isModeSet( Mode.GRAPHIC_MODE ) ) {
+            for( char c : msg.toCharArray() ) {
+                RAM[addr++] = c;
+                RAM[addr++] = flag;
+            }
+        }
     }
 
     @Override

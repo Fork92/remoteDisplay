@@ -9,8 +9,10 @@ public abstract class GraphicsCard {
 
     public abstract void render();
     public abstract void tick();
-    public abstract void setMode(byte mode);
-    public abstract void setRAM(int addr, char value, char flag);
+
+    public abstract void setMode( Mode mode );
+
+    public abstract void setRAM( int addr, char value );
     public abstract void setRAM(int addr, String msg, char flag);
     public abstract int getWidth();
     public abstract int getHeight();
