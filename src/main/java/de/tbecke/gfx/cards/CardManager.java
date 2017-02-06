@@ -5,9 +5,6 @@ import de.tbecke.gfx.Display;
 import java.util.HashMap;
 import java.util.Map;
 
-/**
- * Created by tbecke on 27.01.17.
- */
 public class CardManager {
 
     private Map<String, GraphicsCard> cards;
@@ -19,7 +16,7 @@ public class CardManager {
         this.cards.put( "MDA", new MDA() );
         this.cards.put( "CGA", new CGA() );
         this.display = display;
-        this.setCurrent( "MDA" );
+        this.setCurrent( "CGA" );
     }
 
     public GraphicsCard getCurrent() {

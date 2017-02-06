@@ -11,24 +11,22 @@ import java.awt.image.BufferStrategy;
 import java.awt.image.BufferedImage;
 import java.awt.image.DataBufferInt;
 
-/**
- * Created by tbecke on 20.12.16.
- */
 public class Display extends Canvas implements Runnable {
 
-    private final Logger LOGGER = LogManager.getLogger( Display.class );
+    private static final Logger LOGGER = LogManager.getLogger( Display.class );
     private JFrame frame;
     private boolean running;
-    private CardManager cardManager;
-    private BufferedImage image;
+    private transient CardManager cardManager;
+    private transient BufferedImage image;
     private int[] pixels;
-    private TCPServer server;
+    private transient Thread server;
+    private transient TCPServer tcpServer;
 
     public Display() {
         this.frame = new JFrame( "RemoteDisplay" );
-        cardManager = new CardManager( this );
 
-        this.server = new TCPServer( 1337, this.cardManager );
+        this.cardManager = new CardManager( this );
+        this.tcpServer = new TCPServer( "localhost", 1337, cardManager );
 
 
         this.frame.setDefaultCloseOperation( JFrame.EXIT_ON_CLOSE );
@@ -47,7 +45,8 @@ public class Display extends Canvas implements Runnable {
     private void start() {
         this.running = true;
         new Thread( this, "RemoteDisplay" ).start();
-        new Thread( server, "Server" ).start();
+        server = new Thread( tcpServer, "Server" );
+        server.start();
     }
 
     public void setDisplay( int w, int h ) {
@@ -61,7 +60,6 @@ public class Display extends Canvas implements Runnable {
 
         this.frame.pack();
     }
-
 
     @Override
     public void run() {
@@ -89,6 +87,8 @@ public class Display extends Canvas implements Runnable {
                 Thread.sleep( 2 );
             } catch( InterruptedException e ) {
                 LOGGER.error( e );
+                // clean up the code
+                Thread.currentThread().interrupt();
             }
 
             if( shouldRender ) {
@@ -104,11 +104,18 @@ public class Display extends Canvas implements Runnable {
             }
 
         }
-
+        LOGGER.debug( "Display shutting down" );
     }
 
     private void ticks() {
+        if( !server.isAlive() ) {
+            this.stop();
+        }
         cardManager.getCurrent().tick();
+    }
+
+    private void stop() {
+        running = false;
     }
 
     private void render() {
@@ -122,10 +129,7 @@ public class Display extends Canvas implements Runnable {
         }
 
         cardManager.getCurrent().render();
-
-        for(int i = 0; i < pixels.length; i++) {
-            pixels[i] = cardManager.getCurrent().framebuffer[i];
-        }
+        System.arraycopy( cardManager.getCurrent().getFramebuffer(), 0, pixels, 0, pixels.length );
 
         Graphics graphics = bufferStrategy.getDrawGraphics();
         graphics.setColor( Color.WHITE );

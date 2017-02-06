@@ -2,13 +2,11 @@ package de.tbecke.gfx.cache;
 
 import java.awt.image.BufferedImage;
 
-/**
- * Created by tbecke on 24.01.17.
- */
 public class FontCache {
 
-    public int width, height;
-    public int[] pixels;
+    private int width;
+    private int height;
+    private int[] pixels;
 
     public FontCache( BufferedImage image) {
         width = image.getWidth();
@@ -18,4 +16,17 @@ public class FontCache {
             pixels[i] = (pixels[i] & 0xff) / 64;
         }
     }
+
+    public int getWidth() {
+        return width;
+    }
+
+    public int getHeight() {
+        return height;
+    }
+
+    public int[] getPixels() {
+        return pixels;
+    }
+
 }

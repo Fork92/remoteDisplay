@@ -1,8 +1,5 @@
 package de.tbecke.gfx.cards;
 
-/**
- * Created by tbecke on 27.01.17.
- */
 public enum Color {
 
     BLACK( 0, 0x000000 ),
@@ -22,8 +19,8 @@ public enum Color {
     YELLOW( 14, 0xFFFF55 ),
     WHITE( 15, 0xFFFFFF );
 
-    public int id;
-    public int value;
+    private int id;
+    private int value;
 
     Color( int id, int value ) {
         this.id = id;
@@ -32,7 +29,8 @@ public enum Color {
 
     public static Color getColorByID( int id ) {
         for( Color color : values() ) {
-            if( color.id == id ) return color;
+            if( color.id == id )
+                return color;
         }
 
         return null;
@@ -40,10 +38,15 @@ public enum Color {
 
     public static int getValueByID( int id ) {
         for( Color color : values() ) {
-            if( color.id == id ) return color.value;
+            if( color.id == id )
+                return color.value;
         }
 
         return 0;
+    }
+
+    public int getValue() {
+        return value;
     }
 
 }

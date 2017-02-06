@@ -1,14 +1,19 @@
 package de.tbecke;
 
-import de.tbecke.gfx.*;
+import de.tbecke.gfx.Display;
 
-/**
- * Created by tbecke on 20.12.16.
- */
 public class Main {
+
+
+    /*
+     * private constructor, this is a utility class for static void main()
+     */
+    private Main() {
+    }
 
     public static void main(String[] args) {
         new Display();
+
     }
 
 }
