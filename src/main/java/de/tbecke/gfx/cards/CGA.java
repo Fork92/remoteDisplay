@@ -126,13 +126,31 @@ public class CGA extends GraphicsCard {
             pixelsPerByte = 8;
         }
 
-        for( int i = 0; i < 80 * getHeight(); i++ ) {
+        for( int i = 0; i < ( 80 * getHeight() / 2 ); i++ ) {
             int[] id = getId( ram[i] );
 
             for( int p = 0; p < id.length; p++ ) {
 
                 int x = ( ( i * pixelsPerByte ) + p ) % ( 80 * pixelsPerByte );
-                int y = ( ( i * pixelsPerByte ) + p ) / ( 80 * pixelsPerByte );
+                int y = ( ( ( i * pixelsPerByte ) + p ) / ( 80 * pixelsPerByte ) ) * 2;
+                if( pixelsPerByte == 8 ) {
+                    framebuffer[x + ( y * ( 80 * pixelsPerByte * 2 ) )] = getColor( id[p] );
+                } else {
+                    framebuffer[( x * 2 ) + ( y * ( 80 * pixelsPerByte * 2 ) )] = getColor( id[p] );
+                    framebuffer[( x * 2 + 1 ) + ( y * ( 80 * pixelsPerByte * 2 ) )] = getColor( id[p] );
+                }
+            }
+
+        }
+
+        for( int i = ( 80 * getHeight() / 2 ); i < 80 * getHeight(); i++ ) {
+            int[] id = getId( ram[i] );
+
+            for( int p = 0; p < id.length; p++ ) {
+
+                int x = ( ( ( i - ( 80 * getHeight() / 2 ) ) * pixelsPerByte ) + p ) % ( 80 * pixelsPerByte );
+                int y = ( ( ( ( ( i - ( 80 * getHeight() / 2 ) ) * pixelsPerByte ) + p ) / ( 80 * pixelsPerByte ) ) * 2 ) + 1;
+
                 if( pixelsPerByte == 8 ) {
                     framebuffer[x + ( y * ( 80 * pixelsPerByte * 2 ) )] = getColor( id[p] );
                 } else {
