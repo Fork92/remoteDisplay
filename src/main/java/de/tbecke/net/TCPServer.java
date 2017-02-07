@@ -1,144 +1,167 @@
 package de.tbecke.net;
 
-import de.tbecke.gfx.cards.GraphicsCard;
-import de.tbecke.gfx.cards.MDA;
+import de.tbecke.gfx.cards.CardManager;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 
 import java.io.*;
+import java.net.InetAddress;
+import java.net.InetSocketAddress;
 import java.net.ServerSocket;
 import java.net.Socket;
 
-/**
- * Created by tbecke on 20.12.16.
- */
 public class TCPServer implements Runnable {
 
-    private final Logger LOGGER = LogManager.getLogger( TCPServer.class );
+    private final Logger logger;
 
     private ServerSocket serverSocket;
-    private GraphicsCard graphicsCard;
+    private CardManager cardManager;
 
-    private Socket client;
-
-    private BufferedReader bufferedReader = null;
     private BufferedWriter bufferedWriter = null;
+    private Socket client = null;
+    private boolean running;
 
-    public TCPServer( int port, GraphicsCard graphicsCard ) {
+    public TCPServer( String ip, int port, CardManager cardManager ) {
 
-        this.graphicsCard = graphicsCard;
+        this.cardManager = cardManager;
+
+        this.logger = LogManager.getLogger( TCPServer.class );
+        this.running = true;
 
         try {
-            serverSocket = new ServerSocket( port );
-            LOGGER.info( "Server started on address: " + serverSocket.getInetAddress() + ":" + serverSocket.getLocalPort() );
+            InetAddress address = InetAddress.getByName( ip );
+            InetSocketAddress bindAddr = new InetSocketAddress( address, port );
+            this.serverSocket = new ServerSocket();
+            this.serverSocket.bind( bindAddr );
+            this.logger.info( "Server started on address: " + serverSocket.getInetAddress() + ":" + serverSocket.getLocalPort() );
         } catch( IOException e ) {
-            LOGGER.error( e );
+            this.logger.error( e );
         }
-
-        graphicsCard.setRAM( 0, "Starting server...", (char) ( MDA.UNDERLINE | MDA.HIGHSENSITY ) );
 
     }
 
     @Override
     public void run() {
-        client = null;
         try {
-            graphicsCard.setRAM( 160, "Server Started, waiting for Connection...", (char) ( MDA.UNDERLINE | MDA.HIGHSENSITY ) );
-            client = serverSocket.accept();
-        } catch( IOException e ) {
-            LOGGER.error( e );
-        }
-        graphicsCard.setRAM( 320, "Client connected, on Port: " + client.getLocalPort(), (char) ( MDA.UNDERLINE | MDA.HIGHSENSITY ) );
-
-        while( !client.isClosed() && client.isConnected() ) {
-            try {
-                bufferedReader = new BufferedReader( new InputStreamReader( client.getInputStream() ) );
-                bufferedWriter = new BufferedWriter( new OutputStreamWriter( client.getOutputStream() ) );
+            while( this.running ) {
+                this.client = serverSocket.accept();
+                BufferedReader bufferedReader = new BufferedReader( new InputStreamReader( client.getInputStream() ) );
+                this.bufferedWriter = new BufferedWriter( new OutputStreamWriter( client.getOutputStream() ) );
 
                 String nextLine;
 
-                if( ( nextLine = bufferedReader.readLine() ) != null ) {
+                while( !this.client.isClosed() ) {
+                    if( ( nextLine = bufferedReader.readLine() ) != null ) {
+                        this.getCommands( nextLine.toUpperCase().split( " " ) );
 
-                    String[] switchStr = nextLine.toUpperCase().split( " " );
-
-                    switch( switchStr[0] ) {
-                        case "CLEAR":
-                            this.clear();
-                            break;
-                        case "MEM":
-                            this.write( switchStr );
-                            break;
-                        case "MODE":
-                            break;
-                        case "HELP":
-                            this.printHelp( switchStr );
-                            break;
-                        case "CLOSE":
-                            this.bufferedWriter.write( "Close connection" );
-                            this.client.close();
-                            break;
-                        default:
-                            this.bufferedWriter.write( "undefined Command: \n\t Use \"HELP [Command]\" for help" );
+                        this.bufferedWriter.write( '\n' );
+                        this.bufferedWriter.flush();
                     }
-                    this.bufferedWriter.flush();
+                }
+            }
+        } catch( IOException e ) {
+            this.logger.error( "Client closed connection: ", e );
+        }
 
+        logger.debug( "Server shutting down" );
+    }
+
+    private void getCommands( String[] str ) throws IOException {
+
+        switch( str[0] ) {
+            case "CLEAR":
+                this.cardManager.getCurrent().clear();
+                break;
+            case "MEM":
+                this.mem( str );
+                break;
+            case "REG":
+                this.reg( str );
+                break;
+            case "GC":
+                this.cardManager.setCurrent( str[1] );
+                break;
+            case "HELP":
+                this.printHelp( str );
+                break;
+            case "QUITE":
+                this.quit();
+                break;
+            case "CLOSE":
+                this.close();
+                break;
+            default:
+                this.bufferedWriter.write( "undefined Command: \n\t Use \"HELP [Command]\" for help" );
+        }
+    }
+
+    private void quit() throws IOException {
+        this.bufferedWriter.write( "Shutdown server" );
+        this.close();
+        this.running = false;
+    }
+
+    private void close() throws IOException {
+        this.bufferedWriter.write( "Close connection" );
+        client.close();
+    }
+
+    private void mem( String[] args ) throws IOException {
+        if( args.length > 1 && !this.checkOutofBounds( args ) ) {
+            int start = Integer.parseInt( args[1], 16 );
+            byte[] val = new byte[args.length - 2];
+            for( int i = 0; i < val.length; i++ ) {
+                if( args[i + 2].length() != 2 ) {
+                    bufferedWriter.write( "wert zu groß oder zu klein: " + args[i + 2].length() );
+                    return;
                 }
 
-
-            } catch( IOException e ) {
-                LOGGER.error( e );
+                val[i] = (byte) Integer.parseInt( args[i + 2], 16 );
             }
+
+            this.cardManager.getCurrent().setRAM( start, val );
+
+        } else if( args.length > 1 ) {
+            bufferedWriter.write( "Memory address out of bounds: 0x" + args[1] );
+        } else {
+            bufferedWriter.write( this.cardManager.getCurrent().getMaxRam() );
         }
     }
 
-    private void clear() {
-        for(int i = 0; i < graphicsCard.getMaxRam(); i++) {
-            graphicsCard.setRAM( i, ' ', ' ' );
-        }
+    private boolean checkOutofBounds( String[] args ) {
+        boolean ret = false;
+
+        int start = Integer.parseInt( args[1], 16 );
+        int end = Integer.parseInt( args[1], 16 ) + ( args.length - 2 );
+        int maxRam = Integer.parseInt( this.cardManager.getCurrent().getMaxRam().substring( 2 ), 16 );
+
+        if( start < 0 || start > maxRam || end < 0 || end > maxRam )
+            ret = true;
+
+        return ret;
     }
 
-    private void write( String[] args) {
-        int start = Integer.parseInt( args[1] );
-        LOGGER.debug( args.length );
+    private void reg( String[] args ) throws IOException {
+        if( args.length == 3 ) {
+            this.cardManager.getCurrent().writeRegister( args[1].replace( 'X', 'x' ), (byte) Integer.parseInt( args[2] ) );
+        } else if( args.length == 2 ) {
+            bufferedWriter.write( this.cardManager.getCurrent().readRegister( args[1].replace( 'X', 'x' ) ) );
+        } else {
+            bufferedWriter.write( this.cardManager.getCurrent().readRegister() );
+        }
 
-            LOGGER.debug( "Write at address: " + (start) + ", value with: " + args[2] + ", and flag: " + Integer.toHexString( Integer.parseInt( args[args.length - 1] )));
-            graphicsCard.setRAM( start, args[2], (char)(Integer.parseInt( args[args.length - 1] ) ));
     }
 
     private void printHelp( String[] args ) {
         String msg = "Available commands are:\n" +
-            "\t POINT \t[x][y] [Status]\n" +
-            "\t LINE \t[Sx][Sy] [Ex][Ey] [Status]\n" +
-            "\t CIRCLE \t[x][y][r] [Status]\n" +
             "\t MEM \t[Addr]([Addr], ...) [Status]\n" +
-            "\t MODE \t [FLAG]\n";
+            "\t MODE \t [FLAG]";
 
         if( args.length == 2 ) {
 
-            LOGGER.debug( args[1] );
+            logger.debug( args[1] );
 
             switch( args[1] ) {
-                case "POINT":
-                    msg = "Help for command POINT:\n" +
-                        "\t [x]: the x Point on the Display\n" +
-                        "\t [y]: the y Point on the Display\n" +
-                        "\t [status]: the status Flag for this Element on the Display\n";
-                    break;
-                case "LINE":
-                    msg = "Help for command LINE:\n" +
-                        "\t [Sx]: the start x Point on the Display\n" +
-                        "\t [Sy]: the start y Point on the Display\n" +
-                        "\t [Ex]: the end x Point on the Display\n" +
-                        "\t [Ey]: the end y Point on the Display\n" +
-                        "\t [status]: the status Flag for this Element on the Display\n";
-                    break;
-                case "CIRCLE":
-                    msg = "Help for command CIRCLE:\n" +
-                        "\t [x]: the x Point on the Display\n" +
-                        "\t [y]: the y Point on the Display\n" +
-                        "\t [r]: the the radius for the Circle\n" +
-                        "\t [status]: the status Flag for this Element on the Display\n";
-                    break;
                 case "MEM":
                     msg = "Help for command MEM:\n" +
                         "\t [Addr]: the Address to be manipulated. The address has the following format: 0x...(Hexcode)\n" +
@@ -153,6 +176,8 @@ public class TCPServer implements Runnable {
                     msg = "MODE is usec to switch from the Text mode to the Graphics mode and back:\n" +
                         "\t [FLAG]: 0 for text mode and 1 for Graphics mode";
                     break;
+                default:
+                    break;
             }
         } else if( args.length > 2 ) {
             msg = "To Many Arguments\n\n" + msg;
@@ -163,7 +188,7 @@ public class TCPServer implements Runnable {
             bufferedWriter.write( msg );
             bufferedWriter.flush();
         } catch( IOException e ) {
-            e.printStackTrace();
+            logger.error( e );
         }
     }
 
