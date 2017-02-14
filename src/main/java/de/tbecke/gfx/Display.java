@@ -104,7 +104,7 @@ public class Display extends Canvas implements Runnable {
             }
 
         }
-        LOGGER.debug( "Display shutting down" );
+
     }
 
     private void ticks() {
@@ -116,6 +116,8 @@ public class Display extends Canvas implements Runnable {
 
     private void stop() {
         running = false;
+        LOGGER.debug( "Display shutting down" );
+        this.frame.dispose();
     }
 
     private void render() {

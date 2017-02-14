@@ -41,6 +41,15 @@ public class MDA extends GraphicsCard {
     }
 
     @Override
+    public void tick() {
+        lastBlink++;
+        if( lastBlink >= 30 ) {
+            shouldBlink = !shouldBlink;
+            lastBlink = 0;
+        }
+    }
+
+    @Override
     public void render() {
         if( isBitSet( MODE_REGISTER, Mode.ENABLE_VIDEO_OUTPUT.value ) ) {
 
@@ -79,15 +88,6 @@ public class MDA extends GraphicsCard {
     }
 
     @Override
-    public void tick() {
-        lastBlink++;
-        if( lastBlink >= 30 ) {
-            shouldBlink = !shouldBlink;
-            lastBlink = 0;
-        }
-    }
-
-    @Override
     public int getWidth() {
         return WIDTH;
     }
@@ -121,5 +121,23 @@ public class MDA extends GraphicsCard {
 
     private boolean isAttrSet( int val, int attr ) {
         return ( attr & val ) > 0;
+    }
+
+    @Override
+    public String hasInfo() {
+        return "\t- MDA - This is a Text only card. Each character use 2 bytes.\n" +
+            "\t        The first byte is the character code and the second byte are attributes.\n" +
+            "\t        Available attributes are: Bit 1 - underline\n" +
+            "\t                                  Bit 3 - high intensity\n" +
+            "\t                                  Bit 7 - blink\n" +
+            "\t        The Attributes has eight exceptions:\n" +
+            "\t                                  0x00, 0x08, 0x80, 0x88 display as black space\n" +
+            "\t                                  0x70 display as black on green\n" +
+            "\t                                  0x78 display as dark green on green\n" +
+            "\t                                  0xF0 display as blinking version of 0x70(is blinking enabled), as black on green otherwise\n" +
+            "\t                                  0xF0 display as blinking version of 0x78(is blinking enabled), as dark green on green otherwise\n" +
+            "\t        The MDA card has one register at: 0x03B8\n" +
+            "\t        Available modes are: Bit 3 - Enable Video output\n" +
+            "\t                             Bit 5 - Enable Blink\n";
     }
 }

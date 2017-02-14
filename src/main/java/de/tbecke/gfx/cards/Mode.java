@@ -4,7 +4,6 @@ public enum Mode {
     BLINK( (byte) ( 32 ) ),
     HIGH_RES_GRAPHIC( (byte) ( 16 ) ),
     ENABLE_VIDEO_OUTPUT( (byte) ( 8 ) ),
-    BLACK_WHITE( (byte) ( 4 ) ),
     GRAPHIC_MODE( (byte) ( 2 ) ),
     HIGH_RES( (byte) ( 1 ) );
 

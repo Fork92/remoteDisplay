@@ -35,7 +35,6 @@ public class CGA extends GraphicsCard {
         addRegister( COLOR_REGISTER );
 
         writeRegister( MODE_REGISTER, Mode.ENABLE_VIDEO_OUTPUT.value );
-        writeRegister( MODE_REGISTER, Mode.GRAPHIC_MODE.value );
         writeRegister( COLOR_REGISTER, (byte) 0x18 );
         setRenderWidth();
 
@@ -75,6 +74,15 @@ public class CGA extends GraphicsCard {
             maxCol = 80;
         } else {
             maxCol = 40;
+        }
+    }
+
+    @Override
+    public void tick() {
+        lastBlink++;
+        if( lastBlink >= 30 ) {
+            shouldBlink = !shouldBlink;
+            lastBlink = 0;
         }
     }
 
@@ -126,31 +134,18 @@ public class CGA extends GraphicsCard {
             pixelsPerByte = 8;
         }
 
-        for( int i = 0; i < ( 80 * getHeight() / 2 ); i++ ) {
+        renderInterlacing( 0, 80 * getHeight() / 2, 0, pixelsPerByte );
+        renderInterlacing( 80 * getHeight() / 2, 80 * getHeight(), 1, pixelsPerByte );
+    }
+
+    private void renderInterlacing( int ramStart, int ramEnd, int xStart, int pixelsPerByte ) {
+        for( int i = ramStart; i < ramEnd; i++ ) {
             int[] id = getId( ram[i] );
 
             for( int p = 0; p < id.length; p++ ) {
 
-                int x = ( ( i * pixelsPerByte ) + p ) % ( 80 * pixelsPerByte );
-                int y = ( ( ( i * pixelsPerByte ) + p ) / ( 80 * pixelsPerByte ) ) * 2;
-                if( pixelsPerByte == 8 ) {
-                    framebuffer[x + ( y * ( 80 * pixelsPerByte * 2 ) )] = getColor( id[p] );
-                } else {
-                    framebuffer[( x * 2 ) + ( y * ( 80 * pixelsPerByte * 2 ) )] = getColor( id[p] );
-                    framebuffer[( x * 2 + 1 ) + ( y * ( 80 * pixelsPerByte * 2 ) )] = getColor( id[p] );
-                }
-            }
-
-        }
-
-        for( int i = ( 80 * getHeight() / 2 ); i < 80 * getHeight(); i++ ) {
-            int[] id = getId( ram[i] );
-
-            for( int p = 0; p < id.length; p++ ) {
-
-                int x = ( ( ( i - ( 80 * getHeight() / 2 ) ) * pixelsPerByte ) + p ) % ( 80 * pixelsPerByte );
-                int y = ( ( ( ( ( i - ( 80 * getHeight() / 2 ) ) * pixelsPerByte ) + p ) / ( 80 * pixelsPerByte ) ) * 2 ) + 1;
-
+                int x = ( ( ( i - ramStart ) * pixelsPerByte ) + p ) % ( 80 * pixelsPerByte );
+                int y = ( ( ( ( ( i - ramStart ) * pixelsPerByte ) + p ) / ( 80 * pixelsPerByte ) ) * 2 ) + xStart;
                 if( pixelsPerByte == 8 ) {
                     framebuffer[x + ( y * ( 80 * pixelsPerByte * 2 ) )] = getColor( id[p] );
                 } else {
@@ -204,15 +199,6 @@ public class CGA extends GraphicsCard {
     }
 
     @Override
-    public void tick() {
-        lastBlink++;
-        if( lastBlink >= 30 ) {
-            shouldBlink = !shouldBlink;
-            lastBlink = 0;
-        }
-    }
-
-    @Override
     public int getWidth() {
         return WIDTH;
     }
@@ -220,5 +206,37 @@ public class CGA extends GraphicsCard {
     @Override
     public int getHeight() {
         return HEIGHT;
+    }
+
+    @Override
+    public String hasInfo() {
+        return "\t- CGA - This card has a text and a graphic mode.\n" +
+            "\t        Text mode: Each character use 2 bytes.\n" +
+            "\t                   The first byte is the character code and the second byte are color attributes.\n" +
+            "\t                   Bit 0 - Blue foreground\n" +
+            "\t                   Bit 1 - Green foreground\n" +
+            "\t                   Bit 2 - Red foreground\n" +
+            "\t                   Bit 3 - Bright foreground\n" +
+            "\t                   Bit 4 - Blue background\n" +
+            "\t                   Bit 6 - Green background\n" +
+            "\t                   Bit 7 - Red background\n" +
+            "\t                   Bit 8 - Bright background or if blinking enabled blink\n" +
+            "\t        Graphic mode: In graphic mode each row is 80 bytes. Each byte corresponds to four pixel (320x200px)\n" +
+            "\t                      or to 8 pixels (640x200px resolution). In each case the Highest numbered bits corresponds\n" +
+            "\t                      to the leftmost pixel.\n" +
+            "\t                      For low resolution you have two color pallets\n" +
+            "\t                         Pallet 0 with Black(changeable), Green, Red, Magenta and the bright versions\n" +
+            "\t                         Pallet 1 with Black(changeable), Blue, Magenta, Light gray and the bright versions.\n" +
+            "\t                      For high resolution there are one pallet:\n" +
+            "\t                         Pallet 0 with Black and White(changeable)\n" +
+            "\t                      At beginning of memory are the first set of rows (0, 2, 4, 6, ...)\n" +
+            "\t                      At offset 0x1F40(8k) are the second set of rows (1, 3, 5, 7, ....)\n" +
+            "\t        The CGA card has two registers at: 0x03D8 and 0x03D9\n" +
+            "\t            0x03D8 is the Mode Register:\n" +
+            "\t            Available modes are: Bit 0 - High resolution text mode. This bit effects only in text mode\n" +
+            "\t                                 Bit 1 - Graphic mode. 1 enable graphic mode 0 disable\n" +
+            "\t                                 Bit 3 - Enable Video output\n" +
+            "\t                                 Bit 4 - High resolution graphic mode. this bit effects only in graphic mode\n" +
+            "\t                                 Bit 5 - Enable blinking\n";
     }
 }

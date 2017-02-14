@@ -1,14 +1,9 @@
 package de.tbecke.gfx.cards;
 
-import org.apache.logging.log4j.LogManager;
-import org.apache.logging.log4j.Logger;
-
 import java.util.HashMap;
 import java.util.Map;
 
-public abstract class GraphicsCard {
-
-    private static final Logger LOGGER = LogManager.getLogger( GraphicsCard.class );
+public abstract class GraphicsCard implements Infoable {
 
     private final String name;
     int[] framebuffer;
@@ -21,9 +16,13 @@ public abstract class GraphicsCard {
         this.name = name;
     }
 
+    public abstract void tick();
+
     public abstract void render();
 
-    public abstract void tick();
+    public String getMaxRam() {
+        return "0x" + Integer.toHexString( ram.length );
+    }
 
     public void setRAM( int addr, byte[] value ) {
         for( byte aValue : value ) {
@@ -37,17 +36,22 @@ public abstract class GraphicsCard {
         }
     }
 
-    public void writeRegister( String addr, byte reg ) {
-        if( register.containsKey( addr ) ) {
-            byte old = register.get( addr );
-            LOGGER.debug( "Old reg: " + old + ", new reg: " + ( old ^ reg ) );
-            old ^= reg;
-            register.replace( addr, old );
+    boolean isBitSet( String addr, byte bit ) {
+        return ( register.containsKey( addr ) ) && ( register.get( addr ) & bit ) > 0;
+    }
+
+    void addRegister( String addr ) {
+        if( !register.containsKey( addr ) ) {
+            register.put( addr, (byte) 0 );
         }
     }
 
-    boolean isBitSet( String addr, byte bit ) {
-        return ( register.containsKey( addr ) ) && ( register.get( addr ) & bit ) > 0;
+    public void writeRegister( String addr, byte reg ) {
+        if( register.containsKey( addr ) ) {
+            byte old = register.get( addr );
+            old ^= reg;
+            register.replace( addr, old );
+        }
     }
 
     public String readRegister( String addr ) {
@@ -72,19 +76,9 @@ public abstract class GraphicsCard {
         return ret.toString();
     }
 
-    void addRegister( String addr ) {
-        if( !register.containsKey( addr ) ) {
-            register.put( addr, (byte) 0 );
-        }
-    }
-
     public abstract int getWidth();
 
     public abstract int getHeight();
-
-    public String getMaxRam() {
-        return "0x" + Integer.toHexString( ram.length );
-    }
 
     public int[] getFramebuffer() {
         return framebuffer;
@@ -92,6 +86,10 @@ public abstract class GraphicsCard {
 
     public String getName() {
         return name;
+    }
+
+    public void setWelcome( byte[] mem ) {
+        System.arraycopy( mem, 0, ram, 0, mem.length );
     }
 
 }

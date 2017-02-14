@@ -19,6 +19,10 @@ public class CardManager {
         this.setCurrent( "CGA" );
     }
 
+    public Map<String, GraphicsCard> getAvailableCards() {
+        return cards;
+    }
+
     public GraphicsCard getCurrent() {
         return this.current;
     }
