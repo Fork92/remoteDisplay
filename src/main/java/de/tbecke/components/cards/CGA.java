@@ -72,19 +72,19 @@ public class CGA implements GraphicsCard {
         colorSetBW[1] = Color.getValueByID( 15 );
     }
 
-    private int getRenderWidth() {
-        int b = 0;
-        try {
-            b = RAM.INSTANCE.read( MODE_REGISTER );
-        } catch( RamException e ) {
-            LOGGER.error( e );
-        }
+    @Override
+    public int getWidth() {
+        return WIDTH;
+    }
 
-        if( ( b & Mode.HIGH_RES.value ) != 0 ) {
-            return 80;
-        } else {
-            return 40;
-        }
+    @Override
+    public int getHeight() {
+        return HEIGHT;
+    }
+
+    @Override
+    public int[] getFramebuffer() {
+        return pixels;
     }
 
     @Override
@@ -105,7 +105,6 @@ public class CGA implements GraphicsCard {
             }
         }
     }
-
 
     private void renderText() {
         int b = 0;
@@ -153,9 +152,7 @@ public class CGA implements GraphicsCard {
 
     }
 
-    private void renderGraphic() {
-        int pixelsPerByte = 4;
-
+    private int getRenderWidth() {
         int b = 0;
         try {
             b = RAM.INSTANCE.read( MODE_REGISTER );
@@ -163,15 +160,12 @@ public class CGA implements GraphicsCard {
             LOGGER.error( e );
         }
 
-        if( ( b & Mode.HIGH_RES_GRAPHIC.value ) == Mode.HIGH_RES_GRAPHIC.value ) {
-            pixelsPerByte = 8;
+        if( ( b & Mode.HIGH_RES.value ) != 0 ) {
+            return 80;
+        } else {
+            return 40;
         }
-
-
-        renderInterlacing( 0x0B0000, ( 80 * getHeight() / 2 ) + 0x0B0000, 0, pixelsPerByte );
-        renderInterlacing( ( 80 * getHeight() / 2 ) + 0x0B0000, ( 80 * getHeight() ) + 0xB0000, 1, pixelsPerByte );
     }
-
 
     private void renderGraphic() {
         int pixelsPerByte = 4;
@@ -216,11 +210,6 @@ public class CGA implements GraphicsCard {
         }
     }
 
-    @Override
-    public int getWidth() {
-        return WIDTH;
-    }
-
     private int getColor( int id ) {
         int col;
         int mode = 0;
@@ -261,11 +250,6 @@ public class CGA implements GraphicsCard {
         return col;
     }
 
-    @Override
-    public int getHeight() {
-        return HEIGHT;
-    }
-
     private int[] getId( int b ) {
         int[] ids = new int[4];
         ids[0] = ( b & 0xc0 ) >> 6;
@@ -274,11 +258,6 @@ public class CGA implements GraphicsCard {
         ids[3] = b & 0x03;
 
         return ids;
-    }
-
-    @Override
-    public int[] getFramebuffer() {
-        return pixels;
     }
 
 }
