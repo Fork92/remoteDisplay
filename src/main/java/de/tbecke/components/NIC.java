@@ -1,6 +1,7 @@
-package de.tbecke.net;
+package de.tbecke.components;
 
-import de.tbecke.gfx.cards.CardManager;
+import de.tbecke.components.cards.utils.RamException;
+import de.tbecke.gfx.CardManager;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 
@@ -10,23 +11,20 @@ import java.net.InetSocketAddress;
 import java.net.ServerSocket;
 import java.net.Socket;
 
-public class TCPServer implements Runnable {
+public class NIC implements Runnable {
 
     private final Logger logger;
 
     private ServerSocket serverSocket;
-    private CardManager cardManager;
 
     private BufferedWriter bufferedWriter = null;
     private Socket client = null;
     private boolean running;
     private boolean clientShouldClose = false;
 
-    public TCPServer( String ip, int port, CardManager cardManager ) {
+    public NIC( String ip, int port ) {
 
-        this.cardManager = cardManager;
-
-        this.logger = LogManager.getLogger( TCPServer.class );
+        this.logger = LogManager.getLogger( NIC.class );
         this.running = true;
 
         try {
@@ -34,7 +32,7 @@ public class TCPServer implements Runnable {
             InetSocketAddress bindAddr = new InetSocketAddress( address, port );
             this.serverSocket = new ServerSocket();
             this.serverSocket.bind( bindAddr );
-            this.logger.info( "Se r v e r  started on address: " + serverSocket.getInetAddress() + ":" + serverSocket.getLocalPort() );
+            this.logger.info( "Server  started on address: " + serverSocket.getInetAddress() + ":" + serverSocket.getLocalPort() );
             this.welcome();
         } catch( IOException e ) {
             this.logger.error( e );
@@ -51,50 +49,77 @@ public class TCPServer implements Runnable {
             ret[i * 2 + 1] = 2;
         }
 
-        this.cardManager.getCurrent().setRAM( 0, ret );
+        try {
+            RAM.INSTANCE.write( 0x0B0000, ret );
+        } catch( Exception e ) {
+            logger.error( e );
+        }
     }
 
     @Override
     public void run() {
-        try {
-            while( this.running ) {
-                this.client = serverSocket.accept();
-                this.clientShouldClose = false;
-                BufferedReader bufferedReader = new BufferedReader( new InputStreamReader( client.getInputStream() ) );
-                this.bufferedWriter = new BufferedWriter( new OutputStreamWriter( client.getOutputStream() ) );
 
-                String nextLine;
+        while( this.running ) {
+            waitForConnection();
 
-                while( !this.clientShouldClose ) {
-                    if( ( nextLine = bufferedReader.readLine() ) != null ) {
-                        this.getCommands( nextLine.toUpperCase().split( " " ) );
-                        this.bufferedWriter.flush();
-                    }
-                }
-                this.client.close();
-            }
-            serverSocket.close();
-        } catch( IOException e ) {
-            this.logger.error( "Client closed connection: ", e );
+            readLines();
+
+            closeConnection();
         }
 
-        logger.debug( "Server shutting down" );
+        try {
+            serverSocket.close();
+        } catch( IOException e ) {
+            logger.error( "Client closed connection: ", e );
+        }
     }
 
-    private void getCommands( String[] str ) throws IOException {
+    private void closeConnection() {
+        try {
+            if( client != null && client.isConnected() ) {
+                client.close();
+                client = null;
+                clientShouldClose = false;
+            }
+        } catch( IOException e ) {
+            logger.error( e );
+        }
+    }
+
+    private void readLines() {
+        String nextLine;
+
+        if( client == null )
+            return;
+
+        try {
+            BufferedReader bufferedReader = new BufferedReader( new InputStreamReader( client.getInputStream() ) );
+            while( !clientShouldClose ) {
+                if( ( nextLine = bufferedReader.readLine() ) != null ) {
+                    getCommands( nextLine.toUpperCase().split( " " ) );
+                    bufferedWriter.flush();
+                }
+            }
+        } catch( IOException | RamException e ) {
+            logger.error( "client not connected" );
+            logger.error( e );
+        }
+    }
+
+    private void getCommands( String[] str ) throws IOException, RamException {
 
         switch( str[0] ) {
             case "CLEAR":
-                this.cardManager.getCurrent().clear();
+                RAM.INSTANCE.clear();
                 break;
-            case "MEM":
-                this.mem( str );
+            case "WRITE":
+                this.write( str );
                 break;
-            case "REG":
-                this.reg( str );
+            case "READ":
+                this.read( str );
                 break;
             case "GC":
-                this.cardManager.setCurrent( str[1] );
+                CardManager.getInstance().setCurrent( str[1] );
                 break;
             case "HELP":
                 this.printHelp();
@@ -104,9 +129,6 @@ public class TCPServer implements Runnable {
                 break;
             case "CLOSE":
                 this.close();
-                break;
-            case "LIST":
-                this.listCards();
                 break;
             default:
                 this.bufferedWriter.write( "undefined Command: \n\t Use \"HELP [Command]\" for help" );
@@ -124,7 +146,7 @@ public class TCPServer implements Runnable {
         this.clientShouldClose = true;
     }
 
-    private void mem( String[] args ) throws IOException {
+    private void write( String[] args ) throws IOException {
         if( args.length > 1 && !this.checkOutOfBounds( args ) ) {
             int start = Integer.parseInt( args[1], 16 );
             byte[] val = new byte[args.length - 2];
@@ -137,12 +159,16 @@ public class TCPServer implements Runnable {
                 val[i] = (byte) Integer.parseInt( args[i + 2], 16 );
             }
 
-            this.cardManager.getCurrent().setRAM( start, val );
+            try {
+                RAM.INSTANCE.write( start, val );
+            } catch( Exception e ) {
+                logger.error( e );
+            }
 
         } else if( args.length > 1 ) {
             bufferedWriter.write( "Memory address out of bounds: 0x" + args[1] + "\n" );
         } else {
-            bufferedWriter.write( this.cardManager.getCurrent().getMaxRam() + "\n" );
+            bufferedWriter.write( RAM.INSTANCE.size() + "\n" );
         }
     }
 
@@ -151,7 +177,7 @@ public class TCPServer implements Runnable {
 
         int start = Integer.parseInt( args[1], 16 );
         int end = Integer.parseInt( args[1], 16 ) + ( args.length - 2 );
-        int maxRam = Integer.parseInt( this.cardManager.getCurrent().getMaxRam().substring( 2 ), 16 );
+        int maxRam = RAM.INSTANCE.size();
 
         if( start < 0 || start > maxRam || end < 0 || end > maxRam )
             ret = true;
@@ -159,14 +185,14 @@ public class TCPServer implements Runnable {
         return ret;
     }
 
-    private void reg( String[] args ) throws IOException {
-        if( args.length == 3 ) {
-            this.cardManager.getCurrent().writeRegister( args[1].replace( 'X', 'x' ), (byte) Integer.parseInt( args[2] ) );
-        } else if( args.length == 2 ) {
-            bufferedWriter.write( this.cardManager.getCurrent().readRegister( args[1].replace( 'X', 'x' ) ) );
-        } else {
-            bufferedWriter.write( this.cardManager.getCurrent().readRegister() );
+    private void read( String[] args ) throws IOException, RamException {
+        StringBuilder builder = new StringBuilder();
+
+        if( args.length == 2 ) {
+            builder.append( String.format( "%8s\n", Integer.toBinaryString( RAM.INSTANCE.read( Integer.parseInt( args[1], 16 ) ) ) ).replace( " ", "0" ) );
         }
+
+        bufferedWriter.write( builder.toString() );
 
     }
 
@@ -183,12 +209,22 @@ public class TCPServer implements Runnable {
         bufferedWriter.write( msg );
     }
 
-    private void listCards() throws IOException {
-        StringBuilder msg = new StringBuilder( "Available cards are:\n" );
+    private void waitForConnection() {
 
-        cardManager.getAvailableCards().forEach( ( k, v ) -> msg.append( v.hasInfo() + "\n" ) );
+        logger.debug( "Wait for new connection..." );
 
-        bufferedWriter.write( msg.toString() );
+        if( client != null ) {
+            return;
+        }
+
+        try {
+            client = serverSocket.accept();
+            bufferedWriter = new BufferedWriter( new OutputStreamWriter( client.getOutputStream() ) );
+        } catch( IOException e ) {
+            logger.error( e );
+        }
+
+
     }
 
 }

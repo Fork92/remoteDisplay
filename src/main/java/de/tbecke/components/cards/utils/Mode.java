@@ -1,4 +1,4 @@
-package de.tbecke.gfx.cards;
+package de.tbecke.components.cards.utils;
 
 public enum Mode {
     BLINK( (byte) ( 32 ) ),
@@ -11,15 +11,6 @@ public enum Mode {
 
     Mode( byte m ) {
         this.value = m;
-    }
-
-    public static Mode getByValue( byte c ) {
-        for( Mode mode : values() ) {
-            if( mode.value == c ) {
-                return mode;
-            }
-        }
-        return null;
     }
 
 }

@@ -1,4 +1,4 @@
-package de.tbecke.gfx.cards;
+package de.tbecke.components.cards.utils;
 
 public enum Color {
 
@@ -19,21 +19,12 @@ public enum Color {
     YELLOW( 14, 0xFFFF55 ),
     WHITE( 15, 0xFFFFFF );
 
-    private int id;
-    private int value;
+    private final int id;
+    private final int value;
 
     Color( int id, int value ) {
         this.id = id;
         this.value = value;
-    }
-
-    public static Color getColorByID( int id ) {
-        for( Color color : values() ) {
-            if( color.id == id )
-                return color;
-        }
-
-        return null;
     }
 
     public static int getValueByID( int id ) {
