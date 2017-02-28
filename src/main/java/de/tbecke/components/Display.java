@@ -17,7 +17,6 @@ public class Display extends Canvas {
     private transient BufferedImage image;
 
     public Display() {
-
         resolution = new Dimension( CardManager.getInstance().getCurrent().getWidth(), CardManager.getInstance().getCurrent().getHeight() );
 
         this.setPreferredSize( resolution );
@@ -26,7 +25,6 @@ public class Display extends Canvas {
 
         image = new BufferedImage( this.resolution.width, this.resolution.height, BufferedImage.TYPE_INT_RGB );
         pixels = ( (DataBufferInt) image.getRaster().getDataBuffer() ).getData();
-
     }
 
     public void render() {

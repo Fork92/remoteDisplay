@@ -2,6 +2,7 @@ package de.tbecke;
 
 import de.tbecke.components.Display;
 import de.tbecke.components.NIC;
+import de.tbecke.gfx.CardManager;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 
@@ -65,6 +66,7 @@ public class Manager implements Runnable {
 
             while( unprocessed >= 1 ) {
                 ticks++;
+                CardManager.getInstance().getCurrent().tick();
                 unprocessed -= 1;
                 shouldRender = true;
             }
@@ -91,6 +93,7 @@ public class Manager implements Runnable {
 
         }
     }
+
 
     private boolean isRunning() {
         return running;

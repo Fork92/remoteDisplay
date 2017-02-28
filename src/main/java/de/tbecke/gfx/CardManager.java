@@ -17,7 +17,7 @@ public class CardManager {
         this.cards = new HashMap<>();
         this.cards.put( "MDA", new MDA() );
         this.cards.put( "CGA", new CGA() );
-        this.setCurrent( "CGA" );
+        this.setCurrent( "MDA" );
     }
 
     public static CardManager getInstance() {

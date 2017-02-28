@@ -14,7 +14,7 @@ public class RAM {
     }
 
     public void clear() {
-        for( int i = 0; i < memory.length; i++ ) {
+        for( int i = 0xB0000; i < memory.length; i++ ) {
             memory[i] = 0;
         }
     }

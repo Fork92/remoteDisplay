@@ -9,4 +9,6 @@ public interface GraphicsCard extends Renderable {
     int getHeight();
 
     int[] getFramebuffer();
+
+    void tick();
 }

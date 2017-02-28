@@ -11,6 +11,37 @@ import org.apache.logging.log4j.Logger;
 import javax.imageio.ImageIO;
 import java.io.IOException;
 
+/**
+ * Die CGA Grafikkarte hat eine Auflösung von max. 640x200px
+ * Der Speicherbereich der CGA beginnt an Adresse 0x0B0000 und beträgt 16k
+ * An den Adressen 0x0003D8 und 0x0003D9 liegen die Register für die Modis und der Farbe.
+ * Register 0x0003D8 Moderegister
+ * <ul>
+ * <li>Bit 0: 1 für 80 Zeichen/Zeile Auflösung, 0 für 40 Zeichen, hat nur im Textmode auswirkungen</li>
+ * <li>Bit 1: 1 um den Grafikmode zu aktivieren, 0 für den Textmode</li>
+ * <li>Bit 2: wird nicht genutzt</li>
+ * <li>Bit 3: 1 um die Videoausgabe zu aktivieren, 0 zum deaktivieren(Das bild wird eingefroren</li>
+ * <li>Bit 4: 1 um die Highresolution Grafik(640x200px) zu aktivieren, 0 für LowRes Grafik(320x200px), hat nur im Grafik modus auswirkungen</li>
+ * <li>Bit 5: 1 um Blinken zu aktivieren, 0 zum Deaktivieren, hat nur im Textmodus auswirkungen</li>
+ * <li>Bit 6: wird nicht genutzt</li>
+ * <li>Bit 7: wird nicht genutzt</li>
+ * </ul>
+ * <br>
+ * Register 0x0003D9 Colorregister
+ * <ul>
+ * <li>Bit 0: Blue, in HighRes mode wird dieses Bit für die Vordergrundfarbe genutzt in LowRes Mode für die Hintergrund Farbe</li>
+ * <li>Bit 1: Green, in HighRes mode wird dieses Bit für die Vordergrundfarbe genutzt in LowRes Mode für die Hintergrund Farbe</li>
+ * <li>Bit 2: Red, in HighRes mode wird dieses Bit für die Vordergrundfarbe genutzt in LowRes Mode für die Hintergrund Farbe</li>
+ * <li>Bit 3: Intensity, in HighRes mode wird dieses Bit für die Vordergrundfarbe genutzt in LowRes Mode für die Hintergrund Farbe</li>
+ * <li>Bit 4: 1 für Helle Fordergrundfarbe im LowRes Mode</li>
+ * <li>Bit 5: Wählt die Farbpalette aus, nur im LowRes mode.</li>
+ * <li>Bit 6:</li>
+ * <li>Bit 7:</li>
+ * </ul>
+ *
+ * @author Tobias Becker
+ * @version 1.0
+ */
 public class CGA implements GraphicsCard {
 
     private static final Logger LOGGER = LogManager.getLogger( CGA.class );
@@ -20,12 +51,17 @@ public class CGA implements GraphicsCard {
     private static final int COLOR_REGISTER = 0x03D9;
 
     private FontCache font;
-    private int[] colorSet0;
-    private int[] colorSet1;
+    private int[][] colorSet;
     private int[] colorSetBW;
+
+    private long lastBlink;
+    private boolean shouldBlink;
 
     private int[] pixels;
 
+    /**
+     * Erzeugt eine neue Instance der CGA Grafikkarte.
+     */
     public CGA() {
 
         try {
@@ -47,46 +83,72 @@ public class CGA implements GraphicsCard {
     }
 
     private void initColors() {
-        colorSet0 = new int[8];
-        colorSet0[0] = Color.getValueByID( 0 );
-        colorSet0[1] = Color.getValueByID( 2 );
-        colorSet0[2] = Color.getValueByID( 4 );
-        colorSet0[3] = Color.getValueByID( 5 );
-        colorSet0[4] = Color.getValueByID( 0 );
-        colorSet0[5] = Color.getValueByID( 10 );
-        colorSet0[6] = Color.getValueByID( 12 );
-        colorSet0[7] = Color.getValueByID( 14 );
 
-        colorSet1 = new int[8];
-        colorSet1[0] = Color.getValueByID( 0 );
-        colorSet1[1] = Color.getValueByID( 3 );
-        colorSet1[2] = Color.getValueByID( 5 );
-        colorSet1[3] = Color.getValueByID( 7 );
-        colorSet1[4] = Color.getValueByID( 0 );
-        colorSet1[5] = Color.getValueByID( 11 );
-        colorSet1[6] = Color.getValueByID( 13 );
-        colorSet1[7] = Color.getValueByID( 15 );
+        int changeableColor = 0;
+        int brightColor = 0;
+        try {
+            changeableColor = ( ( RAM.INSTANCE.read( 0x0003D9 ) & 0b1000 ) )
+                + ( ( RAM.INSTANCE.read( 0x0003D9 ) & 0b0100 ) )
+                + ( ( RAM.INSTANCE.read( 0x0003D9 ) & 0b0010 ) )
+                + ( ( RAM.INSTANCE.read( 0x0003D9 ) & 0b0001 ) );
+            brightColor = +RAM.INSTANCE.read( 0x0003D9 & 0b10000 ) != 0 ? 8 : 0;
+        } catch( RamException e ) {
+            LOGGER.error( e );
+        }
+
+        colorSet = new int[2][8];
+
+        colorSet[0][0] = Color.getValueByID( changeableColor );
+        colorSet[0][1] = Color.getValueByID( 2 + brightColor );
+        colorSet[0][2] = Color.getValueByID( 4 + brightColor );
+        colorSet[0][3] = Color.getValueByID( 5 + brightColor );
+
+        colorSet[1][0] = Color.getValueByID( changeableColor );
+        colorSet[1][1] = Color.getValueByID( 3 + brightColor );
+        colorSet[1][2] = Color.getValueByID( 5 + brightColor );
+        colorSet[1][3] = Color.getValueByID( 7 + brightColor );
 
         colorSetBW = new int[2];
         colorSetBW[0] = Color.getValueByID( 0 );
-        colorSetBW[1] = Color.getValueByID( 15 );
+        colorSetBW[1] = Color.getValueByID( changeableColor );
     }
 
+    /**
+     * @return Die Breite des Framebuffers in px als int
+     */
     @Override
     public int getWidth() {
         return WIDTH;
     }
 
+    /**
+     * @return Die höhe des Framebuffers in px als int.
+     */
     @Override
     public int getHeight() {
         return HEIGHT;
     }
 
+    /**
+     * @return Die Pixel des Framebuffers als int[]
+     */
     @Override
     public int[] getFramebuffer() {
         return pixels;
     }
 
+    @Override
+    public void tick() {
+        lastBlink++;
+        if( lastBlink >= 30 ) {
+            shouldBlink = !shouldBlink;
+            lastBlink = 0;
+        }
+    }
+
+    /**
+     *
+     */
     @Override
     public void render() {
 
@@ -115,7 +177,6 @@ public class CGA implements GraphicsCard {
         }
         boolean isHighRes = ( b & Mode.HIGH_RES.value ) == Mode.HIGH_RES.value;
         int rW = getRenderWidth();
-        // read mem
         for( int xy = 0; xy < 25 * rW; xy++ ) {
 
             int x = xy % rW;
@@ -138,7 +199,7 @@ public class CGA implements GraphicsCard {
 
                 int id = font.getPixels()[( charX + fx ) + ( ( charY + fy ) * font.getWidth() )] == 0 ? attr & 0x0f : attr >> 4;
 
-                int col = this.getColor( id );
+                int col = getColor( id, attr );
 
                 if( isHighRes ) {
                     this.pixels[( x * 8 + fx ) + ( ( y * 8 + fy ) * CGA.WIDTH )] = col;
@@ -149,6 +210,32 @@ public class CGA implements GraphicsCard {
             }
 
         }
+
+    }
+
+    private int getColor( int id, int attr ) {
+
+        int col = 0;
+
+        int mode = 0;
+        try {
+            mode = RAM.INSTANCE.read( MODE_REGISTER );
+        } catch( RamException e ) {
+            e.printStackTrace();
+        }
+
+        if( ( mode & Mode.GRAPHIC_MODE.value ) != Mode.GRAPHIC_MODE.value ) {
+            if( ( attr & 0x80 ) == 0 )
+                col = Color.getValueByID( id );
+            else
+                col = Color.getValueByID( id & 0x07 );
+
+            if( ( mode & Mode.BLINK.value ) == Mode.BLINK.value && shouldBlink && ( attr & 0x80 ) == 0x80 ) {
+                col = Color.BLACK.getValue();
+            }
+        }
+
+        return col;
 
     }
 
@@ -187,6 +274,13 @@ public class CGA implements GraphicsCard {
     }
 
     private void renderInterlacing( int ramStart, int ramEnd, int xStart, int pixelsPerByte ) {
+        int colSet = 0;
+        try {
+            colSet = ( RAM.INSTANCE.read( 0x0003D9 ) & 0x10 ) != 0 ? 1 : 0;
+        } catch( RamException e ) {
+            e.printStackTrace();
+        }
+
         for( int i = ramStart; i < ramEnd; i++ ) {
             int[] id = new int[0];
             try {
@@ -200,54 +294,14 @@ public class CGA implements GraphicsCard {
                 int x = ( ( ( i - ramStart ) * pixelsPerByte ) + p ) % ( 80 * pixelsPerByte );
                 int y = ( ( ( ( ( i - ramStart ) * pixelsPerByte ) + p ) / ( 80 * pixelsPerByte ) ) * 2 ) + xStart;
                 if( pixelsPerByte == 8 ) {
-                    pixels[x + ( y * ( 80 * pixelsPerByte * 2 ) )] = getColor( id[p] );
+                    pixels[x + ( y * ( 80 * pixelsPerByte * 2 ) )] = colorSet[colSet][id[p]];
                 } else {
-                    pixels[( x * 2 ) + ( y * ( 80 * pixelsPerByte * 2 ) )] = getColor( id[p] );
-                    pixels[( x * 2 + 1 ) + ( y * ( 80 * pixelsPerByte * 2 ) )] = getColor( id[p] );
+                    pixels[( x * 2 ) + ( y * ( 80 * pixelsPerByte * 2 ) )] = colorSet[colSet][id[p]];
+                    pixels[( x * 2 + 1 ) + ( y * ( 80 * pixelsPerByte * 2 ) )] = colorSet[colSet][id[p]];
                 }
             }
 
         }
-    }
-
-    private int getColor( int id ) {
-        int col;
-        int mode = 0;
-        int color = 0;
-        try {
-            mode = RAM.INSTANCE.read( MODE_REGISTER );
-            color = RAM.INSTANCE.read( COLOR_REGISTER );
-        } catch( RamException e ) {
-            LOGGER.error( e );
-        }
-
-
-        if( ( mode & Mode.GRAPHIC_MODE.value ) != 0 ) {
-            if( ( mode & Mode.HIGH_RES_GRAPHIC.value ) != 0 ) {
-                col = colorSetBW[id];
-            } else if( ( color & (byte) ( 1 << 5 ) ) != 0 ) {
-                if( ( color & (byte) ( 1 << 4 ) ) != 0 ) {
-                    col = colorSet1[id + 4];
-                } else {
-                    col = colorSet1[id];
-                }
-            } else {
-                if( ( color & (byte) ( 1 << 4 ) ) != 0 ) {
-                    col = colorSet0[id + 4];
-                } else {
-                    col = colorSet0[id];
-                }
-            }
-        } else {
-            col = Color.getValueByID( id );
-
-            if( ( mode & Mode.BLINK.value ) != 0 ) {
-                col = Color.BLACK.getValue();
-            }
-        }
-
-
-        return col;
     }
 
     private int[] getId( int b ) {

@@ -25,6 +25,7 @@ public class MDA implements GraphicsCard {
     private FontCache font;
     //    Hilfsvariablen für blinkende Text
     private long lastBlink;
+    private boolean shouldBlink;
 
     private int[] pixels;
 
@@ -63,11 +64,20 @@ public class MDA implements GraphicsCard {
     }
 
     @Override
+    public void tick() {
+        lastBlink++;
+        if( lastBlink >= 30 ) {
+            shouldBlink = !shouldBlink;
+            lastBlink = 0;
+        }
+    }
+
+    @Override
     public void render() {
 
 
         try {
-            if( ( RAM.INSTANCE.read( MODE_REGISTER ) & Mode.ENABLE_VIDEO_OUTPUT.value ) != 0 ) {
+            if( ( RAM.INSTANCE.read( MODE_REGISTER ) & Mode.ENABLE_VIDEO_OUTPUT.value ) != Mode.ENABLE_VIDEO_OUTPUT.value ) {
                 return;
             }
         } catch( RamException e ) {
@@ -122,17 +132,13 @@ public class MDA implements GraphicsCard {
         }
 
         try {
-            if( isAttrSet( BLINK, attr ) && ( RAM.INSTANCE.read( MODE_REGISTER ) & Mode.BLINK.value ) == 0 && shouldBlink() )
+            if( isAttrSet( BLINK, attr ) && ( RAM.INSTANCE.read( MODE_REGISTER ) & Mode.BLINK.value ) == 0 && shouldBlink )
                 color = Color.BLACK;
         } catch( RamException e ) {
             LOGGER.error( e );
         }
 
         return color.getValue();
-    }
-
-    private boolean shouldBlink() {
-        return lastBlink % 30 == 0;
     }
 
     private Color getSpecialColor( int attr, int d ) {
