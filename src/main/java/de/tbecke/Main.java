@@ -1,8 +1,6 @@
 package de.tbecke;
 
-import de.tbecke.gfx.Display;
-
-public class Main {
+class Main {
 
 
     /*
@@ -12,7 +10,7 @@ public class Main {
     }
 
     public static void main(String[] args) {
-        new Display();
+        new Manager( "remoteDisplay" );
 
     }
 
