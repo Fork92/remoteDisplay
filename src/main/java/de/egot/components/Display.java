@@ -1,6 +1,7 @@
-package de.tbecke.components;
+package de.egot.components;
 
-import de.tbecke.gfx.CardManager;
+import de.egot.utils.CardManager;
+import de.egot.utils.Renderable;
 
 import java.awt.*;
 import java.awt.image.BufferStrategy;
@@ -8,9 +9,9 @@ import java.awt.image.BufferedImage;
 import java.awt.image.DataBufferInt;
 
 /**
- * Created by tbecke on 25.02.17.
+ * Created by egot on 25.02.17.
  */
-public class Display extends Canvas {
+public class Display extends Canvas implements Renderable {
 
     private Dimension resolution;
     private int[] pixels;
@@ -27,6 +28,7 @@ public class Display extends Canvas {
         pixels = ( (DataBufferInt) image.getRaster().getDataBuffer() ).getData();
     }
 
+    @Override
     public void render() {
 
         BufferStrategy bufferStrategy = this.getBufferStrategy();
@@ -36,12 +38,9 @@ public class Display extends Canvas {
             return;
         }
 
-        CardManager.getInstance().getCurrent().render();
         System.arraycopy( CardManager.getInstance().getCurrent().getFramebuffer(), 0, pixels, 0, pixels.length );
 
         Graphics graphics = bufferStrategy.getDrawGraphics();
-        graphics.setColor( Color.BLACK );
-        graphics.fillRect( 0, 0, this.getWidth(), this.getHeight() );
 
         graphics.drawImage( image, 0, 0, this.getWidth(), this.getHeight(), null );
 

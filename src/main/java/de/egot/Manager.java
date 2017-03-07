@@ -1,8 +1,8 @@
-package de.tbecke;
+package de.egot;
 
-import de.tbecke.components.Display;
-import de.tbecke.components.NIC;
-import de.tbecke.gfx.CardManager;
+import de.egot.components.Display;
+import de.egot.components.NIC;
+import de.egot.utils.CardManager;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 
@@ -10,7 +10,7 @@ import javax.swing.*;
 import java.awt.*;
 
 /**
- * Created by tbecke on 25.02.17.
+ * Created by egot on 25.02.17.
  */
 public class Manager implements Runnable {
 
@@ -23,11 +23,11 @@ public class Manager implements Runnable {
     private boolean running;
 
 
-    public Manager( String title ) {
+    public Manager( String title, String host, int port ) {
         frame = new JFrame( title );
 
         display = new Display();
-        nic = new NIC( "localhost", 1337 );
+        nic = new NIC( host, port );
 
         frame.setDefaultCloseOperation( JFrame.EXIT_ON_CLOSE );
         frame.setLayout( new BorderLayout() );
@@ -49,6 +49,37 @@ public class Manager implements Runnable {
         new Thread( this ).start();
     }
 
+    public static void main( String[] args ) {
+        if( args.length < 2 ) {
+            CardManager.getInstance().setCurrent( "MDA" );
+        } else if( args.length == 3 && "-c".equals( args[2] ) ) {
+            CardManager.getInstance().setCurrent( args[3] );
+        }
+
+        int i = 0;
+        String host = "127.0.0.1";
+        int port = 1337;
+
+        while( i < args.length ) {
+            switch( args[i] ) {
+                case "-c":
+                    CardManager.getInstance().setCurrent( args[i + 1] );
+                    break;
+                case "-h":
+                    host = args[i + 1];
+                    break;
+                case "-p":
+                    port = Integer.parseInt( args[i + 1] );
+                    break;
+                default:
+                    break;
+            }
+            i += 2;
+        }
+
+        new Manager( "EGoT", host, port );
+    }
+
     @Override
     public void run() {
         long lastTime = System.nanoTime();
@@ -66,7 +97,7 @@ public class Manager implements Runnable {
 
             while( unprocessed >= 1 ) {
                 ticks++;
-                CardManager.getInstance().getCurrent().tick();
+                ticks();
                 unprocessed -= 1;
                 shouldRender = true;
             }
@@ -81,7 +112,7 @@ public class Manager implements Runnable {
 
             if( shouldRender ) {
                 frames++;
-                display.render();
+                render();
             }
 
             if( lastTimer1 + 1000 < System.currentTimeMillis() ) {
@@ -92,11 +123,26 @@ public class Manager implements Runnable {
             }
 
         }
+
+        this.stop();
     }
 
+    private void stop() {
+        frame.setVisible( false );
+        frame.dispose();
+    }
+
+    private void ticks() {
+        CardManager.getInstance().getCurrent().tick();
+    }
+
+    private void render() {
+        CardManager.getInstance().getCurrent().render();
+        display.render();
+    }
 
     private boolean isRunning() {
-        return running;
+        return running && nic.isRunning();
     }
 
 }

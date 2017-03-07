@@ -1,24 +1,25 @@
 #EGot - Emulated Graphiccard over tcp
 
-EGot emulliert Grafikkarten und lässt diese über Telnet manipulieren.
+EGot ist eine Grafikkarten Emulation welche sich über ein TCP-Netz steuern lässt.
 
-##config.properties
-|propertie|Beschreibung|
-|---|---|
-| host| Hostname/IP des Servers|
-| port| Port auf dem gelauscht werden soll|
-| card| Karte welche beim Starten verwendet werden soll|
-| mode| Modus in welchem die Karte starten soll, z.B für CGA: text, graphic|
+##Aufruf
 
+Starten lässt sich EGoT wie folgt:
+```Bash
+$java -jar egot.jar
+```
+Optionale argumente sind:
+```Bash
+-c [card]
+-h [hostip]
+-p [hostport]
+```
 ##Command list:
 
 |Befehl| Argumente              | Description |
 |------|------------------------|-------------|
-|    gc|[cardname]              | Ändert die Karte |
-|   mem|[startaddr] [val1 ...]  | Überschreibt den Speicher an [startaddr]. Es können mehrere values gleichzeitig übergeben werden. [val] ist ein hexword|
-|   reg|                        | Listes alle Registries und deren werte auf|
-|   reg|[addr]                  | Zeigt die werte des Registers an Adresse [addr] |
-|   reg|[addr] [val]            | Schaltet das übergebene Bit [val] im Register auf der Adresse [addr] um |
+|   WRITE|[startaddr] [val1 ...]  | Überschreibt den Speicher oder das Register an [startaddr]. Es können mehrere values gleichzeitig übergeben werden. [val] ist ein Hexwert und entspricht einem Byte|
+|   READ|[addr]                  | Zeigt die werte der Adresse [addr] an |
 |  help|{[Befehl]}              | Zeigt die Hilfe für alle oder dem mitgegebenen befehl an |
 
 ##Implementierte Karten
@@ -131,8 +132,6 @@ Hier lässt sich die erste Farbe frei wählen.
 |Bit 5|1 Enable Blink, 0 disable; only used in textmode|
 
 ####Colorregister 0x03D9
-
-Noch nicht Komplett implementiert.
 
 |Flag | Description         |
 |-----|---------------------|

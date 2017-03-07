@@ -1,8 +1,8 @@
-package de.tbecke.gfx;
+package de.egot.utils;
 
-import de.tbecke.components.cards.CGA;
-import de.tbecke.components.cards.GraphicsCard;
-import de.tbecke.components.cards.MDA;
+import de.egot.components.cards.CGA;
+import de.egot.components.cards.GraphicCard;
+import de.egot.components.cards.MDA;
 
 import java.util.HashMap;
 import java.util.Map;
@@ -10,14 +10,13 @@ import java.util.Map;
 public class CardManager {
 
     private static CardManager instance;
-    private final Map<String, GraphicsCard> cards;
-    private GraphicsCard current;
+    private final Map<String, GraphicCard> cards;
+    private GraphicCard current;
 
     private CardManager() {
         this.cards = new HashMap<>();
         this.cards.put( "MDA", new MDA() );
         this.cards.put( "CGA", new CGA() );
-        this.setCurrent( "MDA" );
     }
 
     public static CardManager getInstance() {
@@ -28,11 +27,7 @@ public class CardManager {
         return instance;
     }
 
-    public Map<String, GraphicsCard> getAvailableCards() {
-        return cards;
-    }
-
-    public GraphicsCard getCurrent() {
+    public GraphicCard getCurrent() {
         return this.current;
     }
 

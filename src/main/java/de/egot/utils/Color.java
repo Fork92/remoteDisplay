@@ -1,4 +1,4 @@
-package de.tbecke.components.cards.utils;
+package de.egot.utils;
 
 public enum Color {
 

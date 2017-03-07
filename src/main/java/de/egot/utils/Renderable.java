@@ -1,4 +1,4 @@
-package de.tbecke.gfx.utils;
+package de.egot.utils;
 
 @FunctionalInterface
 public interface Renderable {

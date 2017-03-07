@@ -1,6 +1,6 @@
-package de.tbecke.components;
+package de.egot.components;
 
-import de.tbecke.components.cards.utils.RamException;
+import de.egot.utils.OutOfRamException;
 
 public class RAM {
 
@@ -19,9 +19,9 @@ public class RAM {
         }
     }
 
-    public void write( int address, byte[] value ) throws RamException {
+    public void write( int address, byte[] value ) throws OutOfRamException {
         if( address < 0 && address + value.length >= size() )
-            throw new RamException();
+            throw new OutOfRamException();
 
         System.arraycopy( value, 0, memory, address, value.length );
 
@@ -31,9 +31,9 @@ public class RAM {
         return SIZE;
     }
 
-    public int read( int address ) throws RamException {
+    public int read( int address ) throws OutOfRamException {
         if( address < 0 && address >= SIZE )
-            throw new RamException();
+            throw new OutOfRamException();
 
         return memory[address] & 0xFF;
     }

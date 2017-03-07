@@ -1,10 +1,10 @@
-package de.tbecke.components.cards;
+package de.egot.components.cards;
 
-import de.tbecke.components.RAM;
-import de.tbecke.components.cards.utils.Color;
-import de.tbecke.components.cards.utils.Mode;
-import de.tbecke.components.cards.utils.RamException;
-import de.tbecke.gfx.cache.FontCache;
+import de.egot.components.RAM;
+import de.egot.components.cards.cache.FontCache;
+import de.egot.utils.Color;
+import de.egot.utils.Mode;
+import de.egot.utils.OutOfRamException;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 
@@ -42,7 +42,7 @@ import java.io.IOException;
  * @author Tobias Becker
  * @version 1.0
  */
-public class CGA implements GraphicsCard {
+public class CGA implements GraphicCard {
 
     private static final Logger LOGGER = LogManager.getLogger( CGA.class );
     private static final int WIDTH = 640;
@@ -65,15 +65,15 @@ public class CGA implements GraphicsCard {
     public CGA() {
 
         try {
-            this.font = new FontCache( ImageIO.read( this.getClass().getResourceAsStream( "/CGA.png" ) ) );
+            this.font = new FontCache( ImageIO.read( this.getClass().getResourceAsStream( "/CGA.png" ) ), 8, 8, 32 );
         } catch( IOException e ) {
             LOGGER.error( e );
         }
 
         try {
             RAM.INSTANCE.write( MODE_REGISTER, new byte[] { Mode.ENABLE_VIDEO_OUTPUT.value } );
-            RAM.INSTANCE.write( COLOR_REGISTER, new byte[] { 0x18 } );
-        } catch( RamException e ) {
+            RAM.INSTANCE.write( COLOR_REGISTER, new byte[] { 0x08 } );
+        } catch( OutOfRamException e ) {
             LOGGER.error( e );
         }
 
@@ -92,7 +92,7 @@ public class CGA implements GraphicsCard {
                 + ( ( RAM.INSTANCE.read( 0x0003D9 ) & 0b0010 ) )
                 + ( ( RAM.INSTANCE.read( 0x0003D9 ) & 0b0001 ) );
             brightColor = +RAM.INSTANCE.read( 0x0003D9 & 0b10000 ) != 0 ? 8 : 0;
-        } catch( RamException e ) {
+        } catch( OutOfRamException e ) {
             LOGGER.error( e );
         }
 
@@ -155,9 +155,11 @@ public class CGA implements GraphicsCard {
         int b = 0;
         try {
             b = RAM.INSTANCE.read( MODE_REGISTER );
-        } catch( RamException e ) {
+        } catch( OutOfRamException e ) {
             LOGGER.error( e );
         }
+
+        initColors();
 
         if( ( b & Mode.ENABLE_VIDEO_OUTPUT.value ) == Mode.ENABLE_VIDEO_OUTPUT.value ) {
             if( ( b & Mode.GRAPHIC_MODE.value ) == Mode.GRAPHIC_MODE.value ) {
@@ -172,7 +174,7 @@ public class CGA implements GraphicsCard {
         int b = 0;
         try {
             b = RAM.INSTANCE.read( MODE_REGISTER );
-        } catch( RamException e ) {
+        } catch( OutOfRamException e ) {
             LOGGER.error( e );
         }
         boolean isHighRes = ( b & Mode.HIGH_RES.value ) == Mode.HIGH_RES.value;
@@ -190,14 +192,12 @@ public class CGA implements GraphicsCard {
             } catch( Exception e ) {
                 LOGGER.error( e );
             }
-            int charX = c % 32 * 8;
-            int charY = c / 32 * 8;
 
             for( byte p = 0; p < 64; p++ ) {
                 int fx = p % 8;
                 int fy = p / 8;
 
-                int id = font.getPixels()[( charX + fx ) + ( ( charY + fy ) * font.getWidth() )] == 0 ? attr & 0x0f : attr >> 4;
+                int id = font.getPixels( c )[p] == 0 ? attr & 0x0f : attr >> 4;
 
                 int col = getColor( id, attr );
 
@@ -220,7 +220,7 @@ public class CGA implements GraphicsCard {
         int mode = 0;
         try {
             mode = RAM.INSTANCE.read( MODE_REGISTER );
-        } catch( RamException e ) {
+        } catch( OutOfRamException e ) {
             e.printStackTrace();
         }
 
@@ -243,7 +243,7 @@ public class CGA implements GraphicsCard {
         int b = 0;
         try {
             b = RAM.INSTANCE.read( MODE_REGISTER );
-        } catch( RamException e ) {
+        } catch( OutOfRamException e ) {
             LOGGER.error( e );
         }
 
@@ -260,7 +260,7 @@ public class CGA implements GraphicsCard {
         int b = 0;
         try {
             b = RAM.INSTANCE.read( MODE_REGISTER );
-        } catch( RamException e ) {
+        } catch( OutOfRamException e ) {
             LOGGER.error( e );
         }
 
@@ -277,7 +277,7 @@ public class CGA implements GraphicsCard {
         int colSet = 0;
         try {
             colSet = ( RAM.INSTANCE.read( 0x0003D9 ) & 0x10 ) != 0 ? 1 : 0;
-        } catch( RamException e ) {
+        } catch( OutOfRamException e ) {
             e.printStackTrace();
         }
 

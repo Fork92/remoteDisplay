@@ -1,7 +1,6 @@
-package de.tbecke.components;
+package de.egot.components;
 
-import de.tbecke.components.cards.utils.RamException;
-import de.tbecke.gfx.CardManager;
+import de.egot.utils.OutOfRamException;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 
@@ -100,13 +99,13 @@ public class NIC implements Runnable {
                     bufferedWriter.flush();
                 }
             }
-        } catch( IOException | RamException e ) {
+        } catch( IOException | OutOfRamException e ) {
             logger.error( "client not connected" );
             logger.error( e );
         }
     }
 
-    private void getCommands( String[] str ) throws IOException, RamException {
+    private void getCommands( String[] str ) throws IOException, OutOfRamException {
 
         switch( str[0] ) {
             case "CLEAR":
@@ -118,9 +117,6 @@ public class NIC implements Runnable {
             case "READ":
                 this.read( str );
                 break;
-            case "GC":
-                CardManager.getInstance().setCurrent( str[1] );
-                break;
             case "HELP":
                 this.printHelp();
                 break;
@@ -131,7 +127,8 @@ public class NIC implements Runnable {
                 this.close();
                 break;
             default:
-                this.bufferedWriter.write( "undefined Command: \n\t Use \"HELP [Command]\" for help" );
+                this.bufferedWriter.write( "undefined Command: \n\t Use \"HELP [Command]\" for help\n" );
+                this.printHelp();
         }
     }
 
@@ -168,7 +165,8 @@ public class NIC implements Runnable {
         } else if( args.length > 1 ) {
             bufferedWriter.write( "Memory address out of bounds: 0x" + args[1] + "\n" );
         } else {
-            bufferedWriter.write( RAM.INSTANCE.size() + "\n" );
+            bufferedWriter.write( "Ungültige Anzahl an Argumenten.\n" );
+            printHelp();
         }
     }
 
@@ -185,7 +183,19 @@ public class NIC implements Runnable {
         return ret;
     }
 
-    private void read( String[] args ) throws IOException, RamException {
+    private void printHelp() throws IOException {
+        String msg = "Available commands are:\n" +
+            "\t WRITE \t[Addr] [Byte] [Byte] ...\n" +
+            "\t READ \t [Addr]\n" +
+            "\t CLEAR\n" +
+            "\t QUIT \t\t\t\t Closed the connection and shutdown the graphic server\n" +
+            "\t CLOSE \t\t\t\t Closed the connection\n" +
+            "\t HELP\n";
+
+        bufferedWriter.write( msg );
+    }
+
+    private void read( String[] args ) throws IOException, OutOfRamException {
         StringBuilder builder = new StringBuilder();
 
         if( args.length == 2 ) {
@@ -194,19 +204,6 @@ public class NIC implements Runnable {
 
         bufferedWriter.write( builder.toString() );
 
-    }
-
-    private void printHelp() throws IOException {
-        String msg = "Available commands are:\n" +
-            "\t MEM \t[Addr] ([Status] ...)\n" +
-            "\t REG \t ([FLAG])\n" +
-            "\t CLEAR\n" +
-            "\t GC \t[Cardname] \t\t Available cards are MDA and CGA\n" +
-            "\t QUIT \t\t\t\t Closed the connection and shutdown the graphic server\n" +
-            "\t CLOSE \t\t\t\t Closed the connection\n" +
-            "\t HELP\n";
-
-        bufferedWriter.write( msg );
     }
 
     private void waitForConnection() {
@@ -225,6 +222,10 @@ public class NIC implements Runnable {
         }
 
 
+    }
+
+    public boolean isRunning() {
+        return running;
     }
 
 }

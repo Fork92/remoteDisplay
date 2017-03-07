@@ -1,17 +1,17 @@
-package de.tbecke.components.cards;
+package de.egot.components.cards;
 
-import de.tbecke.components.RAM;
-import de.tbecke.components.cards.utils.Color;
-import de.tbecke.components.cards.utils.Mode;
-import de.tbecke.components.cards.utils.RamException;
-import de.tbecke.gfx.cache.FontCache;
+import de.egot.components.RAM;
+import de.egot.components.cards.cache.FontCache;
+import de.egot.utils.Color;
+import de.egot.utils.Mode;
+import de.egot.utils.OutOfRamException;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 
 import javax.imageio.ImageIO;
 import java.io.IOException;
 
-public class MDA implements GraphicsCard {
+public class MDA implements GraphicCard {
     //    Const Variablen für die Attribute
     private static final char UNDERLINE = 1 << 1;
     private static final char HIGHSENSITY = 1 << 3;
@@ -32,13 +32,13 @@ public class MDA implements GraphicsCard {
     public MDA() {
         try {
             this.font = new FontCache( ImageIO.read(
-                this.getClass().getResourceAsStream( "/MDA.png" ) ) );
+                this.getClass().getResourceAsStream( "/MDA.png" ) ), 9, 14, 32 );
         } catch( IOException e ) {
             LOGGER.error( e );
         }
         try {
             RAM.INSTANCE.write( MODE_REGISTER, new byte[] { Mode.ENABLE_VIDEO_OUTPUT.value } );
-        } catch( RamException e ) {
+        } catch( OutOfRamException e ) {
             LOGGER.error( e );
         }
 
@@ -75,17 +75,16 @@ public class MDA implements GraphicsCard {
     @Override
     public void render() {
 
-
         try {
             if( ( RAM.INSTANCE.read( MODE_REGISTER ) & Mode.ENABLE_VIDEO_OUTPUT.value ) != Mode.ENABLE_VIDEO_OUTPUT.value ) {
                 return;
             }
-        } catch( RamException e ) {
+        } catch( OutOfRamException e ) {
             LOGGER.error( e );
         }
 
         // read mem
-        for( int xy = 0; xy < 25 + 80; xy++ ) {
+        for( int xy = 0; xy < 25 * 80; xy++ ) {
             int x = xy % 80;
             int y = xy / 80;
 
@@ -97,44 +96,36 @@ public class MDA implements GraphicsCard {
             } catch( Exception e ) {
                 LOGGER.error( e );
             }
-            int charX = c % 32 * 9;
-            int charY = c / 32 * 14;
-
 
             for( int fy = 0; fy < 14; fy++ ) {
                 for( int fx = 0; fx < 9; fx++ ) {
-                    int col = getColor( charX, fx, charY, fy, attr );
+                    int col = getColor( fx, fy, c, attr );
 
                     this.pixels[( x * 9 + fx ) + ( ( y * 14 + fy ) * this.getWidth() )] = col;
                 }
             }
-
-
         }
-
     }
 
-    private int getColor( int charX, int fx, int charY, int fy, int attr ) {
+    private int getColor( int fx, int fy, int c, int attr ) {
 
-        int d = font.getPixels()[( charX + fx ) + ( ( charY + fy ) * font.getWidth() )];
+        int d = font.getPixels( c )[fx + fy * font.getCharWidth()];
 
         Color color = getSpecialColor( attr, d );
 
-        if( isAttrSet( HIGHSENSITY, attr ) && attr != HIGHSENSITY ) {
-            color = Color.LIGHTGREEN;
+        if( isAttrSet( HIGHSENSITY, attr ) && attr != HIGHSENSITY && attr != 0x88 ) {
+            color = isCharPixel( d ) ? Color.LIGHTGREEN : Color.BLACK;
             if( isAttrSet( UNDERLINE, attr ) && fy == 12 ) {
                 color = Color.LIGHTGREEN;
             }
-        }
-
-        if( isAttrSet( UNDERLINE, attr ) && fy == 12 ) {
+        } else if( isAttrSet( UNDERLINE, attr ) && fy == 12 ) {
             color = Color.GREEN;
         }
 
         try {
             if( isAttrSet( BLINK, attr ) && ( RAM.INSTANCE.read( MODE_REGISTER ) & Mode.BLINK.value ) == 0 && shouldBlink )
                 color = Color.BLACK;
-        } catch( RamException e ) {
+        } catch( OutOfRamException e ) {
             LOGGER.error( e );
         }
 
@@ -147,7 +138,7 @@ public class MDA implements GraphicsCard {
         int b = 0;
         try {
             b = RAM.INSTANCE.read( MODE_REGISTER );
-        } catch( RamException e ) {
+        } catch( OutOfRamException e ) {
             LOGGER.error( e );
         }
 
@@ -159,20 +150,28 @@ public class MDA implements GraphicsCard {
                 color = Color.BLACK;
                 break;
             case 0x70:
+            case 0xf0:
                 color = isCharPixel( d ) ? Color.BLACK : Color.LIGHTGREEN;
+                try {
+                    if( ( RAM.INSTANCE.read( MODE_REGISTER ) & Mode.BLINK.value ) == 0 && shouldBlink && attr == 0xf0 ) {
+                        color = Color.BLACK;
+                    }
+                } catch( OutOfRamException e ) {
+                    LOGGER.error( e );
+                }
                 break;
             case 0x78:
-                color = isCharPixel( d ) ? Color.GREEN : Color.LIGHTGREEN;
-                break;
-            case 0xf0:
-                if( ( ( b & Mode.BLINK.value ) != 0 ) ) {
-                    color = isCharPixel( d ) ? Color.BLACK : Color.LIGHTGREEN;
-                }
-                break;
             case 0xf8:
-                if( ( ( b & Mode.BLINK.value ) != 0 ) ) {
-                    color = isCharPixel( d ) ? Color.GREEN : Color.LIGHTGREEN;
+                color = isCharPixel( d ) ? Color.GREEN : Color.LIGHTGREEN;
+
+                try {
+                    if( ( RAM.INSTANCE.read( MODE_REGISTER ) & Mode.BLINK.value ) == 0 && shouldBlink && attr == 0xf8 ) {
+                        color = isCharPixel( d ) ? Color.GREEN : Color.LIGHTGREEN;
+                    }
+                } catch( OutOfRamException e ) {
+                    e.printStackTrace();
                 }
+
                 break;
             default:
                 color = isCharPixel( d ) ? Color.GREEN : Color.BLACK;
