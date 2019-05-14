@@ -1,16 +1,16 @@
-#EGot - Emulated Graphiccard over tcp
+# EGot - Emulated Graphiccard over tcp
 
 EGot emulliert Grafikkarten und lässt diese über Telnet manipulieren.
 
-##config.properties
-|propertie|Beschreibung|
-|---|---|
+## config.properties
+| propertie | Beschreibung |
+| --- | --- |
 | host| Hostname/IP des Servers|
 | port| Port auf dem gelauscht werden soll|
 | card| Karte welche beim Starten verwendet werden soll|
 | mode| Modus in welchem die Karte starten soll, z.B für CGA: text, graphic|
 
-##Command list:
+## Command list:
 
 |Befehl| Argumente              | Description |
 |------|------------------------|-------------|
@@ -21,8 +21,8 @@ EGot emulliert Grafikkarten und lässt diese über Telnet manipulieren.
 |   reg|[addr] [val]            | Schaltet das übergebene Bit [val] im Register auf der Adresse [addr] um |
 |  help|{[Befehl]}              | Zeigt die Hilfe für alle oder dem mitgegebenen befehl an |
 
-##Implementierte Karten
-###MDA
+## Implementierte Karten
+### MDA
 Die MDA Karte kann nur Text anzeigen. Die Auflösung beträgt
 80x25 Characters, wobei jedes Character in 9x14px auflöst, dies macht eine Gesamt Auflösung von 720x280px.
 
@@ -37,7 +37,7 @@ Das erste Byte repräsentiert jeweils den Character, das zweite Byte die Attribu
 |colors   | green on black                 |
 |registers| Moderegister on address: 0x03B8|
 
-####Character Statuscodes
+#### Character Statuscodes
 |Flag | Description                       |
 |-----|-----------------------------------|
 |Bit 1| Underline                         |
@@ -57,7 +57,7 @@ Exception:
 |0xF0|Blinking version of 0x70, is blinking activated|
 |0xF8|Blinking version of 0x78, is blinking activated|
 
-####Moderegister 0x03B8
+#### Moderegister 0x03B8
 |Flag | Description                      |
 |-----|----------------------------------|
 |Bit 0|Highres mode: Alway 1             |
@@ -65,7 +65,7 @@ Exception:
 |Bit 3|1 Enable Video output, 0 disable  |
 |Bit 5|1 Enable Blink, 0 disable; let Character with bit 7 set blink, If not show high intensity background         |
 
-###CGA
+### CGA
 Die CGA Karte besitzt sowohl einen Textmodus, wie auch einen Grafikmodus. 
 In beiden Modis gibt es einen High resolution und einen Low resolution mode.
 
@@ -103,7 +103,7 @@ wobei eine auf Black festgelegt ist. die 2. Kann über das Colorregister gesetzt
 Im Low res Mode unterstütz die Karte 320x200px mit 4 Farben + highsensity wert.
 Hier lässt sich die erste Farbe frei wählen.
 
-####Colorpalette 0
+#### Colorpalette 0
 |color  |highsensity  | code|
 |-------|-------------|-----|
 |Black  | Black       | 0   |
@@ -111,7 +111,7 @@ Hier lässt sich die erste Farbe frei wählen.
 |Red    | Lightred    | 2   |
 |Magenta| Lightmagenta| 3   |
 
-####Colorpalette 1
+#### Colorpalette 1
 |color    | Highsensity | code|
 |---------|-------------|-----|
 |Black    | Black       | 0   |
@@ -119,7 +119,7 @@ Hier lässt sich die erste Farbe frei wählen.
 |Magenta  | Lightmagenta| 2   |
 |Lightgray| White       | 3   |
 
-####Moderegister 0x03D8
+#### Moderegister 0x03D8
 
 |Flag | Description                      |
 |-----|----------------------------------|
@@ -130,7 +130,7 @@ Hier lässt sich die erste Farbe frei wählen.
 |Bit 4|1 Enable Highres Graphic          |
 |Bit 5|1 Enable Blink, 0 disable; only used in textmode|
 
-####Colorregister 0x03D9
+#### Colorregister 0x03D9
 
 Noch nicht Komplett implementiert.
 
